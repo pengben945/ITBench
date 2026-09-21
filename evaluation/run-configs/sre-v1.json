@@ -1,0 +1,12 @@
+{
+  "config_version": "1.0",
+  "system_prompt": "evaluation/prompts/sre_system_v1.md",
+  "task_prompt": "evaluation/prompts/sre_diagnosis_v1.md",
+  "output_schema": "evaluation/schemas/diagnosis-v1.schema.json",
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
+  "thinking_level": "high",
+  "tools": ["read", "grep", "find", "ls"],
+  "sandbox": null,
+  "purpose": "minimal_baseline"
+}

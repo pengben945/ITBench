@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://itbench.local/schemas/diagnosis-v1.schema.json",
+  "title": "ITBench SRE Diagnosis v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "diagnosis_status",
+    "summary",
+    "root_cause",
+    "affected_entities",
+    "timeline",
+    "evidence",
+    "propagation",
+    "recommended_actions",
+    "confidence",
+    "uncertainties"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "scenario_id": { "type": "string", "pattern": "^Scenario-[0-9]+$" },
+    "diagnosis_status": {
+      "enum": ["resolved", "insufficient_evidence"]
+    },
+    "summary": { "type": "string", "minLength": 1 },
+    "root_cause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "namespace", "condition", "mechanism"],
+      "properties": {
+        "kind": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "namespace": { "type": ["string", "null"] },
+        "condition": { "type": ["string", "null"] },
+        "mechanism": { "type": ["string", "null"] }
+      }
+    },
+    "affected_entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "name", "impact"],
+        "properties": {
+          "kind": { "type": "string" },
+          "name": { "type": "string" },
+          "impact": { "type": "string" }
+        }
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["timestamp", "event"],
+        "properties": {
+          "timestamp": { "type": ["string", "null"] },
+          "event": { "type": "string" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_type", "file", "timestamp", "observation", "supports"],
+        "properties": {
+          "source_type": {
+            "enum": ["alert", "k8s_event", "k8s_object", "metric", "log", "trace"]
+          },
+          "file": { "type": "string", "minLength": 1 },
+          "timestamp": { "type": ["string", "null"] },
+          "observation": { "type": "string", "minLength": 1 },
+          "supports": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "propagation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "target", "effect"],
+        "properties": {
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "effect": { "type": "string" }
+        }
+      }
+    },
+    "recommended_actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "verification"],
+        "properties": {
+          "action": { "type": "string" },
+          "verification": { "type": "string" }
+        }
+      }
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "uncertainties": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

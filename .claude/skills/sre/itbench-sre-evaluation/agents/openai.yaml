@@ -1,0 +1,4 @@
+interface:
+  display_name: "ITBench SRE Evaluation"
+  short_description: "Run, score, record, and sync ITBench SRE evaluations"
+  default_prompt: "Use $itbench-sre-evaluation to prepare and run an ITBench SRE case, score and record the result, or synchronize evaluation code between the local and remote worktrees."

@@ -1,0 +1,59 @@
+{%- set system_message = "" -%}
+{%- set start_index = 0 -%}
+{%- if messages and messages[0]['role'] == 'system' -%}
+  {%- set system_message = messages[0]['content'] | trim -%}
+  {%- set start_index = 1 -%}
+{%- endif -%}
+{{- '<|system|>' -}}
+{{- system_message -}}
+{%- if tools is defined and tools -%}
+{{- '\n\nYou have access to the tools listed below. Call tools whenever external data or actions are required. Use only listed tools. Emit a tool call in the exact form <|tool_call|>[{"name":"tool_name","parameters":{"argument":"value"}}]<|/tool_call|>. Do not copy the tool definitions, explain the call, or use Markdown in the same response. After receiving a tool response, use that result and do not repeat an identical successful call.\n<|tool|>[' -}}
+{%- for tool in tools -%}
+  {%- set fn = tool['function'] if tool.get('function') else tool -%}
+  {{- '{"name":' -}}{{- fn['name'] | tojson -}}
+  {{- ',"description":' -}}{{- fn.get('description', '') | tojson -}}
+  {{- ',"parameters":' -}}{{- fn.get('parameters', {}).get('properties', {}) | tojson -}}{{- '}' -}}
+  {%- if not loop.last -%}{{- ',' -}}{%- endif -%}
+{%- endfor -%}
+{{- ']' -}}
+{{- '<|/tool|>' -}}
+{%- endif -%}
+{{- '<|end|>' -}}
+
+{%- for message in messages[start_index:] -%}
+  {%- if message['role'] == 'user' -%}
+    {{- '<|user|>' -}}
+    {{- message['content'] if message['content'] is string else message['content'] | tojson -}}
+    {{- '<|end|>' -}}
+  {%- elif message['role'] == 'assistant' and message.get('tool_calls') -%}
+    {{- '<|assistant|><|tool_call|>[' -}}
+    {%- for call in message['tool_calls'] -%}
+      {%- set fn = call['function'] if call.get('function') else call -%}
+      {{- '{"name":' -}}{{- fn['name'] | tojson -}}{{- ',"parameters":' -}}
+      {%- if fn['arguments'] is string -%}
+        {{- fn['arguments'] -}}
+      {%- else -%}
+        {{- fn['arguments'] | tojson -}}
+      {%- endif -%}
+      {{- '}' -}}
+      {%- if not loop.last -%}{{- ',' -}}{%- endif -%}
+    {%- endfor -%}
+    {{- ']<|/tool_call|><|end|>' -}}
+  {%- elif message['role'] == 'assistant' -%}
+    {{- '<|assistant|>' -}}
+    {{- message['content'] if message['content'] is string else message['content'] | tojson -}}
+    {{- '<|end|>' -}}
+  {%- elif message['role'] == 'tool' -%}
+    {{- '<|tool_response|>' -}}
+    {{- message['content'] if message['content'] is string else message['content'] | tojson -}}
+    {{- '<|end|>' -}}
+  {%- else -%}
+    {{- '<|' + message['role'] + '|>' -}}
+    {{- message['content'] if message['content'] is string else message['content'] | tojson -}}
+    {{- '<|end|>' -}}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- if add_generation_prompt -%}
+  {{- '<|assistant|>' -}}
+{%- endif -%}

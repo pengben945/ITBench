@@ -195,6 +195,16 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# ITBench local evaluation data and generated artifacts
+/datasets/raw/
+/datasets/agent_cases/
+/datasets/ground_truth/
+/runs/
+/outputs/
+/reports/
+/evaluation/ground_truth/
+/evaluation/reports/
+
 # Claude Code - User-specific files
 .claude/settings.local.json
 .claude/keybindings.json

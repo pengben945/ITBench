@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://itbench.local/schemas/diagnosis-v3.schema.json",
+  "title": "ITBench concise diagnosis result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "status",
+    "summary",
+    "findings",
+    "causal_chain",
+    "evidence",
+    "actions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "3.0"
+    },
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "resolved",
+        "partially_resolved",
+        "unresolved"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "causal_chain": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "$ref": "#/$defs/causalLink"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/action"
+      }
+    }
+  },
+  "$defs": {
+    "findingIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^F[0-9]+$"
+      },
+      "uniqueItems": true
+    },
+    "evidenceIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^E[0-9]+$"
+      },
+      "uniqueItems": true
+    },
+    "entity": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name",
+            "namespace"
+          ],
+          "properties": {
+            "kind": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "namespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "role",
+        "status",
+        "statement",
+        "entity",
+        "confidence",
+        "evidence_for",
+        "evidence_against",
+        "uncertainty",
+        "verification"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^F[0-9]+$"
+        },
+        "role": {
+          "enum": [
+            "trigger",
+            "bottleneck",
+            "propagation",
+            "symptom",
+            "alternative"
+          ]
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "unresolved",
+            "rejected"
+          ]
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500
+        },
+        "entity": {
+          "$ref": "#/$defs/entity"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidence_for": {
+          "$ref": "#/$defs/evidenceIds"
+        },
+        "evidence_against": {
+          "$ref": "#/$defs/evidenceIds"
+        },
+        "uncertainty": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "verification": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        }
+      }
+    },
+    "causalLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to",
+        "evidence_ids"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^F[0-9]+$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^F[0-9]+$"
+        },
+        "evidence_ids": {
+          "$ref": "#/$defs/evidenceIds"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source_type",
+        "file",
+        "timestamp",
+        "observation"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^E[0-9]+$"
+        },
+        "source_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timestamp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "action",
+        "verification"
+      ],
+      "properties": {
+        "target": {
+          "type": "string",
+          "pattern": "^F[0-9]+$"
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "verification": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    }
+  }
+}

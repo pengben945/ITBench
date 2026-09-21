@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://itbench.local/schemas/diagnosis-v2.schema.json",
+  "title": "ITBench SRE Diagnosis v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "diagnosis_status",
+    "summary",
+    "root_cause",
+    "bottleneck",
+    "symptoms",
+    "timeline",
+    "evidence",
+    "investigation_steps",
+    "hypotheses",
+    "causal_chain",
+    "coverage",
+    "recommended_actions",
+    "confidence",
+    "uncertainties"
+  ],
+  "properties": {
+    "schema_version": { "const": "2.0" },
+    "scenario_id": { "type": "string", "pattern": "^Scenario-[0-9]+$" },
+    "diagnosis_status": {
+      "enum": ["resolved", "partially_resolved", "insufficient_evidence"]
+    },
+    "summary": { "type": "string", "minLength": 1 },
+    "root_cause": { "$ref": "#/$defs/rootCause" },
+    "bottleneck": {
+      "oneOf": [
+        { "$ref": "#/$defs/bottleneck" },
+        { "type": "null" }
+      ]
+    },
+    "symptoms": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/symptom" }
+    },
+    "timeline": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/timelineEvent" }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "investigation_steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/investigationStep" }
+    },
+    "hypotheses": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/hypothesis" }
+    },
+    "causal_chain": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/causalLink" }
+    },
+    "coverage": { "$ref": "#/$defs/coverage" },
+    "recommended_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "uncertainties": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "evidenceIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^E[0-9]+$" },
+      "uniqueItems": true
+    },
+    "rootCause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "namespace", "trigger_type", "condition", "mechanism", "evidence_ids"],
+      "properties": {
+        "kind": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "namespace": { "type": ["string", "null"] },
+        "trigger_type": {
+          "enum": [
+            "configuration_change",
+            "deployment_change",
+            "traffic_change",
+            "resource_failure",
+            "dependency_failure",
+            "business_event",
+            "unknown"
+          ]
+        },
+        "condition": { "type": ["string", "null"] },
+        "mechanism": { "type": ["string", "null"] },
+        "evidence_ids": { "$ref": "#/$defs/evidenceIds" }
+      }
+    },
+    "bottleneck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "namespace", "condition", "mechanism", "evidence_ids"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "namespace": { "type": ["string", "null"] },
+        "condition": { "type": "string", "minLength": 1 },
+        "mechanism": { "type": "string", "minLength": 1 },
+        "evidence_ids": { "$ref": "#/$defs/evidenceIds" }
+      }
+    },
+    "symptom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "condition", "evidence_ids"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "condition": { "type": "string", "minLength": 1 },
+        "evidence_ids": { "$ref": "#/$defs/evidenceIds" }
+      }
+    },
+    "timelineEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "event_type", "event", "entities", "evidence_ids"],
+      "properties": {
+        "timestamp": { "type": ["string", "null"] },
+        "event_type": { "enum": ["trigger", "bottleneck", "propagation", "symptom", "context"] },
+        "event": { "type": "string", "minLength": 1 },
+        "entities": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "evidence_ids": { "$ref": "#/$defs/evidenceIds" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source_type", "file", "timestamp", "observation", "supports", "quality"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^E[0-9]+$" },
+        "source_type": { "enum": ["alert", "k8s_event", "k8s_object", "metric", "log", "trace"] },
+        "file": { "type": "string", "minLength": 1 },
+        "timestamp": { "type": ["string", "null"] },
+        "observation": { "type": "string", "minLength": 1 },
+        "supports": { "type": "string", "minLength": 1 },
+        "quality": { "enum": ["direct", "indirect"] }
+      }
+    },
+    "investigationStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "layer", "question", "hypothesis", "action", "observation", "inference", "next_step"],
+      "properties": {
+        "step_id": { "type": "integer", "minimum": 1 },
+        "layer": {
+          "enum": ["system_metrics", "requests", "users_or_tenants", "configuration_or_release", "business_events"]
+        },
+        "question": { "type": "string", "minLength": 1 },
+        "hypothesis": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "observation": { "type": "string", "minLength": 1 },
+        "inference": { "type": "string", "minLength": 1 },
+        "next_step": { "type": ["string", "null"] }
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "classification", "status", "evidence_for", "evidence_against", "missing_evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^H[0-9]+$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "classification": { "enum": ["trigger", "bottleneck", "symptom", "alternative"] },
+        "status": { "enum": ["supported", "rejected", "unresolved"] },
+        "evidence_for": { "$ref": "#/$defs/evidenceIds" },
+        "evidence_against": { "$ref": "#/$defs/evidenceIds" },
+        "missing_evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "causalLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "target", "effect", "evidence_ids"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "effect": { "type": "string", "minLength": 1 },
+        "evidence_ids": { "$ref": "#/$defs/evidenceIds" }
+      }
+    },
+    "coverageItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "summary", "evidence_ids"],
+      "properties": {
+        "status": { "enum": ["checked", "unavailable"] },
+        "summary": { "type": "string", "minLength": 1 },
+        "evidence_ids": { "$ref": "#/$defs/evidenceIds" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system_metrics", "requests", "users_or_tenants", "configuration_or_release", "business_events"],
+      "properties": {
+        "system_metrics": { "$ref": "#/$defs/coverageItem" },
+        "requests": { "$ref": "#/$defs/coverageItem" },
+        "users_or_tenants": { "$ref": "#/$defs/coverageItem" },
+        "configuration_or_release": { "$ref": "#/$defs/coverageItem" },
+        "business_events": { "$ref": "#/$defs/coverageItem" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "action", "verification"],
+      "properties": {
+        "target": { "enum": ["trigger", "bottleneck", "symptom"] },
+        "action": { "type": "string", "minLength": 1 },
+        "verification": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

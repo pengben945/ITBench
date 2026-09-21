@@ -109,6 +109,59 @@
           ]
         }
       }
+    },
+    {
+      "name": "itbench-sre-evaluation",
+      "type": "suggest",
+      "priority": "high",
+      "description": "Runs the ITBench raw-data to Case pipeline, V6 diagnosis evaluation, scoring, and model result tracking",
+      "triggers": {
+        "prompt": {
+          "keywords": [
+            "ITBench evaluation",
+            "ITBench-AA",
+            "prepare scenario",
+            "agent case",
+            "run case",
+            "V6 prompt",
+            "diagnosis-v3",
+            "model evaluation tracker",
+            "评测模型",
+            "原始数据转 case",
+            "测试模型能力",
+            "根因分析评测",
+            "最新模板",
+            "最新模版",
+            "模型结果记录",
+            "两端同步",
+            "代码同步",
+            "同步服务器",
+            "git pull",
+            "git push",
+            "远程更新"
+          ],
+          "intentPatterns": [
+            "(prepare|convert|build|generate).*?(case|scenario|dataset)",
+            "(run|test|evaluate).*?(case|scenario|model)",
+            "(score|assess|compare|record).*?(diagnosis|model|run|result)",
+            "(sync|synchronize|pull|push).*?(local|remote|server|code|repository)",
+            "(原始数据|数据集).*?(case|评测|转换)",
+            "(运行|测试|评估|记录).*?(模型|场景|结果)",
+            "(同步|更新).*?(本地|远端|服务器|代码|仓库)"
+          ]
+        },
+        "file": {
+          "pathPatterns": [
+            "**/evaluation/prompts/sre_system_v6.md",
+            "**/evaluation/scripts/prepare_scenario_v2.sh",
+            "**/evaluation/scripts/run_scenario_v6.sh",
+            "**/evaluation/schemas/diagnosis-v3.schema.json",
+            "**/evaluation/reports/model-evaluation-tracker.md",
+            "**/datasets/raw/itbench-aa/**",
+            "**/datasets/agent_cases/**"
+          ]
+        }
+      }
     }
   ]
 }

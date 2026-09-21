@@ -1,0 +1,5 @@
+FROM lmsysorg/sglang:nightly-dev-cu13-20260827-20621aa1
+
+COPY phi4_detector.py /sgl-workspace/sglang/python/sglang/srt/function_call/phi4_detector.py
+COPY install_phi4_parser.py /tmp/install_phi4_parser.py
+RUN python3 /tmp/install_phi4_parser.py && rm /tmp/install_phi4_parser.py

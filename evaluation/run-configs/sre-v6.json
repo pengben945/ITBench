@@ -1,0 +1,36 @@
+{
+  "config_version": "6.0",
+  "experiment": "change-evidence-gate-v6",
+  "system_prompt": "evaluation/prompts/sre_system_v6.md",
+  "task_prompt": "evaluation/prompts/sre_diagnosis_v6.md",
+  "output_schema": "evaluation/schemas/diagnosis-v3.schema.json",
+  "provider": "Maas-gpt",
+  "model": "gpt-5.6-luna",
+  "thinking_level": "high",
+  "tools": [
+    "read",
+    "grep",
+    "find",
+    "ls",
+    "bash"
+  ],
+  "disabled_capabilities": [
+    "write",
+    "edit",
+    "powershell",
+    "extensions",
+    "skills",
+    "prompt_templates",
+    "context_files"
+  ],
+  "sandbox": {
+    "implementation": "bubblewrap",
+    "case_input": "read_only",
+    "work_directory": "/work",
+    "output_schema": "/instructions/diagnosis-v3.schema.json",
+    "temporary_directory": "/tmp",
+    "ground_truth_mounted": false,
+    "other_scenarios_mounted": false,
+    "network_namespace": "shared_for_model_api"
+  }
+}

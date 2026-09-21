@@ -1,0 +1,41 @@
+{
+  "config_version": "2.0",
+  "system_prompt": "evaluation/prompts/sre_system_v2.md",
+  "task_prompt": "evaluation/prompts/sre_diagnosis_v2.md",
+  "output_schema": "evaluation/schemas/diagnosis-v2.schema.json",
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
+  "thinking_level": "high",
+  "tools": [
+    "read",
+    "grep",
+    "find",
+    "ls",
+    "bash"
+  ],
+  "disabled_capabilities": [
+    "write",
+    "edit",
+    "powershell",
+    "extensions",
+    "skills",
+    "prompt_templates",
+    "context_files"
+  ],
+  "sandbox": {
+    "implementation": "bubblewrap",
+    "case_input": "read_only",
+    "work_directory": "/work",
+    "temporary_directory": "/tmp",
+    "ground_truth_mounted": false,
+    "other_scenarios_mounted": false,
+    "network_namespace": "shared_for_model_api"
+  },
+  "required_coverage": [
+    "system_metrics",
+    "requests",
+    "users_or_tenants",
+    "configuration_or_release",
+    "business_events"
+  ]
+}
