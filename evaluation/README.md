@@ -76,7 +76,7 @@ evaluation/scripts/run_case_comparison_v6.sh Scenario-1
 python3 evaluation/scripts/register_scored_run.py runs/Scenario-1/run-NNN
 ```
 
-看板以固定左右栏展示这两个批次，Case 和模型使用共用下拉框筛选。Pi-Agent 跳转按钮使用看板顶部配置的 URL 模板，必须填入部署环境实际支持的路由并包含 `{session}`；不要假设 WebUI 链接格式。历史记录仍保留在“全部运行记录与历史批次”中。
+看板以固定左右栏展示这两个批次，Case 和模型使用共用下拉框筛选。Pi-Agent 跳转按钮使用看板顶部配置的 URL 模板，必须填入部署环境实际支持的路由并包含 `{session}`；不要假设 WebUI 链接格式。旧批次 `v6-user-minimal` / `v6-user-full` 也在下方按原名分栏展示，其他历史记录仍保留在“全部运行记录与历史批次”中。
 
 每次运行都保留新的 run ID。协议无效或诊断无效的记录照常登记，但不能带有效诊断分数。Ground Truth 仅供评分使用，绝不能提供给被评测的 Pi-Agent。
 

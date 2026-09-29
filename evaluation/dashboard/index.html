@@ -98,6 +98,34 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
       </tr></thead><tbody id="knowledgeRows"></tbody></table></div>
     </section>
   </div>
+  <section class="history-cohorts">
+    <div class="history-section-head">
+      <h2>历史执行 Case 对照</h2>
+      <p>以下记录按旧批次原名展示，不会冒充新 Pi-Agent 原生 / 用户知识增强批次；Case 和模型筛选同样适用。</p>
+    </div>
+    <div class="split">
+      <section class="cohort">
+        <div class="cohort-head">
+          <h2>旧版最小提示词</h2>
+          <p>历史批次：<code>v6-user-minimal</code></p>
+          <div class="metrics" id="legacyMinimalStats"></div>
+        </div>
+        <div class="runlist"><table><thead><tr>
+          <th>运行</th><th>状态</th><th>官方分</th><th>证据分</th><th>耗时</th><th>工具</th><th>Tokens</th><th>成本$</th><th>Pi-Agent</th>
+        </tr></thead><tbody id="legacyMinimalRows"></tbody></table></div>
+      </section>
+      <section class="cohort">
+        <div class="cohort-head">
+          <h2>旧版完整排查提示词</h2>
+          <p>历史批次：<code>v6-user-full</code></p>
+          <div class="metrics" id="legacyFullStats"></div>
+        </div>
+        <div class="runlist"><table><thead><tr>
+          <th>运行</th><th>状态</th><th>官方分</th><th>证据分</th><th>耗时</th><th>工具</th><th>Tokens</th><th>成本$</th><th>Pi-Agent</th>
+        </tr></thead><tbody id="legacyFullRows"></tbody></table></div>
+      </section>
+    </div>
+  </section>
   <details class="history">
     <summary>全部运行记录与历史批次</summary>
     <div class="history-table-wrap">
@@ -109,6 +137,10 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
 const COHORTS=[
   {id:"v6-pi-native",label:"Pi-Agent 原生",rows:"nativeRows",stats:"nativeStats"},
   {id:"v6-user-knowledge",label:"用户排查知识增强",rows:"knowledgeRows",stats:"knowledgeStats"}
+];
+const HISTORICAL_COHORTS=[
+  {id:"v6-user-minimal",label:"旧版最小提示词",rows:"legacyMinimalRows",stats:"legacyMinimalStats"},
+  {id:"v6-user-full",label:"旧版完整排查提示词",rows:"legacyFullRows",stats:"legacyFullStats"}
 ];
 const COLS=[
   ["batch","批次"],["scenario","Case"],["model","模型"],["run_id","run"],
@@ -254,6 +286,7 @@ function renderCohort(cohort){
 }
 function render(){
   const cohorts=COHORTS.map(renderCohort);
+  HISTORICAL_COHORTS.forEach(renderCohort);
   const left=cohorts[0],right=cohorts[1];
   const delta=(field,leftValue,rightValue,suffix="")=>{
     if(leftValue==null||rightValue==null)return `${field}差值：—`;
@@ -264,7 +297,7 @@ function render(){
   };
   $("delta").textContent=(left.rows.length||right.rows.length)?
     `${delta("官方均分",left.avgOfficial,right.avgOfficial,"%")}　·　${delta("证据均分",left.avgEvidence,right.avgEvidence)}　·　${delta("平均耗时",left.avgDuration,right.avgDuration,"s")}　·　${delta("平均成本",left.avgCost,right.avgCost,"$")}`:
-    "当前筛选下暂无新对照记录；历史批次可在下方展开查看";
+    "当前筛选下暂无新批次记录；旧版 minimal / full 执行结果已在下方分栏展示";
   renderHistory();
 }
 function renderHistory(){
