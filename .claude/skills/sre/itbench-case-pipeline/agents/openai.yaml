@@ -1,0 +1,4 @@
+interface:
+  display_name: "ITBench Case Pipeline"
+  short_description: "Run, score, and compare paired ITBench Cases"
+  default_prompt: "Use $itbench-case-pipeline to run a Case with native Pi-Agent and with user-provided troubleshooting knowledge, then score and register both runs."

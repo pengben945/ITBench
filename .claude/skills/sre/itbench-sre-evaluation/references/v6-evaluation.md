@@ -73,7 +73,28 @@ This is an abstract attribution structure, not a requirement to invent a trigger
 
 ## Scoring Rubric
 
-Apply `evaluation/scoring/sre-v2-rubric.md` as a 100-point rubric:
+Apply the Fixed Scoring Contract in the skill and use
+`evaluation/scoring/sre-v2-rubric.md` for the evidence-quality subscore
+justifications.
+
+The primary official track is ITBench-AA's root-cause entity score:
+
+```text
+G = official Ground Truth root-cause entities
+P = deduplicated, normalized Agent-predicted entities
+TP = P ∩ G
+FN = G - P
+FP = P - G
+
+FN != empty  -> official_gt_score = 0
+otherwise    -> official_gt_score = |TP| / (|TP| + |FP|)
+```
+
+The score is strict full recall followed by precision. Ground Truth remains
+scoring-only and must not be exposed to the Agent. Record the entity
+normalization and scenario group/filter mapping used for the comparison.
+
+The secondary project track is the following 100-point evidence rubric:
 
 | Dimension | Points |
 | --- | ---: |
@@ -87,10 +108,15 @@ Apply `evaluation/scoring/sre-v2-rubric.md` as a 100-point rubric:
 | Repair and verification | 5 |
 | Output and reproducibility | 5 |
 
-Report two tracks independently:
+The weighted total is fixed, but the repository currently does not implement
+deterministic per-dimension subscore thresholds. Until it does, assess each
+dimension manually, record all nine subscores and the justification, and do not
+describe the evidence score as an official ITBench score.
 
-- `ground_truth_match`: strict match to the official root-cause entities, conditions, and propagation;
-- `evidence_quality`: whether the diagnosis is supported by the Case data, independent of official labels.
+Report both tracks independently:
+
+- `official_gt_score` (legacy name: `ground_truth_match`): strict official entity-set score;
+- `evidence_quality_score` (legacy name: `evidence_quality`): evidence-supported project score.
 
 Use the failure categories `DATA`, `PARSING`, `RETRIEVAL`, `REASONING`, `ENTITY`, `OUTPUT`, `INFRA`, and `GRADER`. A missing historical baseline or ambiguous official label is a data/grader limitation, not automatically a model failure. A service tool-call/parser mismatch is an infrastructure/protocol failure; do not grade it as causal reasoning until a valid run is available.
 
@@ -118,3 +144,22 @@ Schema / 工作文件：
 ```
 
 Use the tracker as a longitudinal record: preserve failed and infrastructure-invalid runs, mark them as such, and do not compare them as valid diagnosis accuracy. A retry is a new record with a new run ID.
+
+## Pi-Agent Native vs User-Knowledge Comparison
+
+The new paired comparison is documented in the sibling
+`itbench-case-pipeline` skill. Its only canonical batches are:
+
+- `v6-pi-native`: Pi's default system prompt with a neutral task/output contract.
+- `v6-user-knowledge`: the same default system prompt and contract plus user-provided troubleshooting knowledge.
+
+Both prompts are passed as the user task. The runner records the Pi version and
+prompt/schema hashes; the native run has no custom `system_prompt.txt`.
+Historical user-full/minimal/system batches are not aliases for these cohorts.
+After scoring, `evaluation/scripts/register_scored_run.py` posts the run to
+`/api/register`; the dashboard stores new registrations separately from its
+existing run snapshot and notes.
+
+Use `evaluation/schemas/run-score-v1.schema.json` for each run's `score.json`.
+The official score is `[0, 1]`; evidence quality is `[0, 100]` and must equal
+the sum of the nine rubric subscores. Invalid diagnoses carry null scores.

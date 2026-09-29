@@ -162,6 +162,40 @@
           ]
         }
       }
+    },
+    {
+      "name": "itbench-case-pipeline",
+      "type": "suggest",
+      "priority": "high",
+      "description": "Runs and scores paired Pi-Agent-native and user-knowledge ITBench Cases, then registers them in the evaluation dashboard",
+      "triggers": {
+        "prompt": {
+          "keywords": [
+            "case execution pipeline",
+            "Pi-Agent native comparison",
+            "user troubleshooting knowledge",
+            "运行 Case 对照",
+            "执行 Case 流水线",
+            "原生 Pi-Agent",
+            "用户排查知识",
+            "登记评测看板"
+          ],
+          "intentPatterns": [
+            "(run|execute|compare).*?(pi-agent|case|scenario).*?(native|knowledge|prompt)",
+            "(运行|执行|对比).*?(原生|排查知识|提示词|Case|场景)",
+            "(score|register).*?(case|run|dashboard)",
+            "(评分|登记).*?(case|运行|看板)"
+          ]
+        },
+        "file": {
+          "pathPatterns": [
+            "**/evaluation/scripts/run_case_comparison_v6.sh",
+            "**/evaluation/scripts/register_scored_run.py",
+            "**/evaluation/schemas/run-score-v1.schema.json",
+            "**/evaluation/dashboard/**"
+          ]
+        }
+      }
     }
   ]
 }

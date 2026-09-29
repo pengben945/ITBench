@@ -12,6 +12,9 @@ Environment overrides:
   PI_EVAL_MODEL      Default: deepseek-v4-flash
   PI_EVAL_THINKING   Default: high
   PI_EVAL_PROXY_URL  Optional HTTP(S) proxy forwarded into the sandbox
+  PI_EVAL_SYSTEM_PROMPT_MODE  custom (default) or pi-default
+  PI_EVAL_BATCH  Batch label recorded in model_config.json
+  PI_EVAL_DATA_REVISION  Dataset revision recorded in model_config.json
 EOF
   exit 2
 }
@@ -33,6 +36,8 @@ WORK_DIR="$RUN_DIR/work"
 SYSTEM_TEMPLATE=${PI_EVAL_SYSTEM_TEMPLATE:-"$PROJECT_ROOT/evaluation/prompts/sre_system_v3.md"}
 TASK_TEMPLATE=${PI_EVAL_TASK_TEMPLATE:-"$PROJECT_ROOT/evaluation/prompts/sre_diagnosis_v3.md"}
 PROMPT_VERSION=${PI_EVAL_PROMPT_VERSION:-3.0}
+PROMPT_PLACEMENT=${PI_EVAL_PROMPT_PLACEMENT:-system}
+SYSTEM_PROMPT_MODE=${PI_EVAL_SYSTEM_PROMPT_MODE:-custom}
 SCHEMA_VERSION=${PI_EVAL_SCHEMA_VERSION:-2.0}
 SCHEMA_FILE=${PI_EVAL_SCHEMA_FILE:-"$PROJECT_ROOT/evaluation/schemas/diagnosis-v2.schema.json"}
 SCHEMA_MOUNT=${PI_EVAL_SCHEMA_MOUNT:-/instructions/diagnosis-v2.schema.json}
@@ -42,6 +47,8 @@ PROVIDER=${PI_EVAL_PROVIDER:-deepseek}
 MODEL=${PI_EVAL_MODEL:-deepseek-v4-flash}
 THINKING=${PI_EVAL_THINKING:-high}
 PROXY_URL=${PI_EVAL_PROXY_URL:-}
+BATCH=${PI_EVAL_BATCH:-v6-unclassified}
+DATA_REVISION=${PI_EVAL_DATA_REVISION:-76df38a82288f75ba9e41dc8c515033332497473}
 
 for command_name in bwrap pi jq python3 sha256sum; do
   command -v "$command_name" >/dev/null || {
@@ -50,12 +57,25 @@ for command_name in bwrap pi jq python3 sha256sum; do
   }
 done
 
-for required_path in "$CASE_DIR" "$SYSTEM_TEMPLATE" "$TASK_TEMPLATE" "$SCHEMA_FILE"; do
+case "$SYSTEM_PROMPT_MODE" in
+  custom|pi-default) ;;
+  *)
+    echo "PI_EVAL_SYSTEM_PROMPT_MODE must be 'custom' or 'pi-default'" >&2
+    exit 2
+    ;;
+esac
+
+for required_path in "$CASE_DIR" "$TASK_TEMPLATE" "$SCHEMA_FILE"; do
   [[ -e "$required_path" ]] || {
     echo "Required path not found: $required_path" >&2
     exit 1
   }
 done
+
+if [[ "$SYSTEM_PROMPT_MODE" == custom && ! -f "$SYSTEM_TEMPLATE" ]]; then
+  echo "Custom system prompt not found: $SYSTEM_TEMPLATE" >&2
+  exit 1
+fi
 
 if find "$CASE_DIR" -type l -print -quit | grep -q .; then
   echo "Refusing case containing symbolic links: $CASE_DIR" >&2
@@ -184,13 +204,63 @@ fi
 
 umask 077
 mkdir -p "$WORK_DIR" "$SESSION_DIR"
-cp "$SYSTEM_TEMPLATE" "$RUN_DIR/system_prompt.txt"
+if [[ "$SYSTEM_PROMPT_MODE" == custom ]]; then
+  cp "$SYSTEM_TEMPLATE" "$RUN_DIR/system_prompt.txt"
+  SYSTEM_PROMPT_SHA256=$(sha256sum "$RUN_DIR/system_prompt.txt" | cut -d ' ' -f1)
+else
+  SYSTEM_PROMPT_SHA256=null
+fi
 sed "s/{{SCENARIO_ID}}/$SCENARIO_ID/g" "$TASK_TEMPLATE" > "$RUN_DIR/prompt.txt"
 cp "$SCHEMA_FILE" "$SCHEMA_SNAPSHOT"
 
-printf '{\n  "promptVersion": "%s",\n  "outputSchemaVersion": "%s",\n  "provider": "%s",\n  "id": "%s",\n  "thinkingLevel": "%s",\n  "tools": ["read", "grep", "find", "ls", "bash"],\n  "sandbox": "bubblewrap",\n  "proxyEnabled": %s\n}\n' \
-  "$PROMPT_VERSION" "$SCHEMA_VERSION" "$PROVIDER" "$MODEL" "$THINKING" \
-  "$([[ -n "$PROXY_URL" ]] && printf true || printf false)" > "$RUN_DIR/model_config.json"
+TASK_PROMPT_SHA256=$(sha256sum "$RUN_DIR/prompt.txt" | cut -d ' ' -f1)
+SCHEMA_SHA256=$(sha256sum "$SCHEMA_SNAPSHOT" | cut -d ' ' -f1)
+PI_VERSION=$(pi --version | head -n 1)
+
+PI_EVAL_PROMPT_VERSION="$PROMPT_VERSION" \
+PI_EVAL_PROMPT_PLACEMENT="$PROMPT_PLACEMENT" \
+PI_EVAL_SYSTEM_PROMPT_MODE="$SYSTEM_PROMPT_MODE" \
+PI_EVAL_SYSTEM_PROMPT_SHA256="$SYSTEM_PROMPT_SHA256" \
+PI_EVAL_TASK_PROMPT_SHA256="$TASK_PROMPT_SHA256" \
+PI_EVAL_SCHEMA_SHA256="$SCHEMA_SHA256" \
+PI_EVAL_SCHEMA_VERSION="$SCHEMA_VERSION" \
+PI_EVAL_PROVIDER="$PROVIDER" \
+PI_EVAL_MODEL="$MODEL" \
+PI_EVAL_THINKING="$THINKING" \
+PI_EVAL_PI_VERSION="$PI_VERSION" \
+PI_EVAL_BATCH="$BATCH" \
+PI_EVAL_DATA_REVISION="$DATA_REVISION" \
+PI_EVAL_PROXY_URL="$PROXY_URL" \
+python3 - "$RUN_DIR/model_config.json" <<'PY'
+import json
+import os
+import sys
+
+system_prompt_sha256 = os.environ["PI_EVAL_SYSTEM_PROMPT_SHA256"]
+config = {
+    "promptVersion": os.environ["PI_EVAL_PROMPT_VERSION"],
+    "promptPlacement": os.environ["PI_EVAL_PROMPT_PLACEMENT"],
+    "systemPromptMode": os.environ["PI_EVAL_SYSTEM_PROMPT_MODE"],
+    "systemPromptSha256": (
+        None if system_prompt_sha256 == "null" else system_prompt_sha256
+    ),
+    "taskPromptSha256": os.environ["PI_EVAL_TASK_PROMPT_SHA256"],
+    "schemaSha256": os.environ["PI_EVAL_SCHEMA_SHA256"],
+    "outputSchemaVersion": os.environ["PI_EVAL_SCHEMA_VERSION"],
+    "provider": os.environ["PI_EVAL_PROVIDER"],
+    "id": os.environ["PI_EVAL_MODEL"],
+    "thinkingLevel": os.environ["PI_EVAL_THINKING"],
+    "piVersion": os.environ["PI_EVAL_PI_VERSION"],
+    "batch": os.environ["PI_EVAL_BATCH"],
+    "dataRevision": os.environ["PI_EVAL_DATA_REVISION"],
+    "tools": ["read", "grep", "find", "ls", "bash"],
+    "sandbox": "bubblewrap",
+    "proxyEnabled": bool(os.environ.get("PI_EVAL_PROXY_URL")),
+}
+with open(sys.argv[1], "w", encoding="utf-8") as stream:
+    json.dump(config, stream, ensure_ascii=False, indent=2)
+    stream.write("\n")
+PY
 
 (
   cd "$CASE_DIR"
@@ -200,27 +270,31 @@ printf '{\n  "promptVersion": "%s",\n  "outputSchemaVersion": "%s",\n  "provider
 build_bwrap_args "$WORK_DIR"
 BWRAP_ARGS+=(--bind "$SESSION_DIR" "$SESSION_DIR")
 
-SYSTEM_PROMPT=$(<"$RUN_DIR/system_prompt.txt")
 TASK_PROMPT=$(<"$RUN_DIR/prompt.txt")
+PI_ARGS=(
+  pi
+  --offline
+  --provider "$PROVIDER"
+  --model "$MODEL"
+  --thinking "$THINKING"
+  --mode json
+  --print
+  --name "$SCENARIO_ID-$RUN_ID"
+  --tools read,grep,find,ls,bash
+  --no-extensions
+  --no-skills
+  --no-prompt-templates
+  --no-context-files
+)
+if [[ "$SYSTEM_PROMPT_MODE" == custom ]]; then
+  SYSTEM_PROMPT=$(<"$RUN_DIR/system_prompt.txt")
+  PI_ARGS+=(--system-prompt "$SYSTEM_PROMPT")
+fi
+PI_ARGS+=(-- "$TASK_PROMPT")
 
 date -Iseconds > "$RUN_DIR/started_at.txt"
 set +e
-bwrap "${BWRAP_ARGS[@]}" \
-  pi \
-  --offline \
-  --provider "$PROVIDER" \
-  --model "$MODEL" \
-  --thinking "$THINKING" \
-  --mode json \
-  --print \
-  --name "$SCENARIO_ID-$RUN_ID" \
-  --tools read,grep,find,ls,bash \
-  --no-extensions \
-  --no-skills \
-  --no-prompt-templates \
-  --no-context-files \
-  --system-prompt "$SYSTEM_PROMPT" \
-  -- "$TASK_PROMPT" \
+bwrap "${BWRAP_ARGS[@]}" "${PI_ARGS[@]}" \
   </dev/null > "$RUN_DIR/raw_output.jsonl" 2> "$RUN_DIR/stderr.log"
 RUN_STATUS=$?
 set -e

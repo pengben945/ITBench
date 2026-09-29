@@ -19,6 +19,74 @@ The current comparison baseline is:
 
 Do not edit the prompt, schema, runner, or rubric as part of an ordinary case run. A prompt or schema change is a separate experiment and must be explicitly requested. Always freeze and record provider, model, thinking level, prompt version, schema version, data revision, and run ID.
 
+## Fixed Scoring Contract
+
+Every valid diagnosis run must be reported on two separate tracks. Never merge them into
+one score or describe the project score as an official ITBench leaderboard score.
+
+### Official GT track
+
+`official_gt_score` is the primary benchmark score and follows the ITBench-AA
+root-cause entity rule:
+
+```text
+G = official root-cause entity set from the scenario Ground Truth
+P = deduplicated, normalized entity set predicted by the Agent
+TP = P ∩ G
+FN = G - P
+FP = P - G
+
+if FN is non-empty:
+    official_gt_score = 0
+else:
+    official_gt_score = |TP| / (|TP| + |FP|)
+```
+
+The score is in `[0, 1]` (report it as a percentage when useful). A non-empty
+Ground Truth with an empty prediction scores `0`. Entity normalization and
+scenario group/filter matching must be applied consistently and recorded with the
+score; duplicate predictions count once. Use `ground_truth_match` only as a
+legacy label for this track, not as a separate scoring method.
+
+Ground Truth is scoring-only data. It must never be mounted into or used to compose
+the Agent prompt. A valid run can receive an official score of zero even when its
+investigation contains useful evidence.
+
+### Evidence-quality track
+
+`evidence_quality_score` is the project's secondary research score. It is a
+100-point weighted rubric, independent of the official labels:
+
+| Dimension | Points |
+| --- | ---: |
+| Trigger identification | 25 |
+| Technical bottleneck | 10 |
+| Causal propagation | 15 |
+| Temporal consistency | 10 |
+| Evidence quality | 15 |
+| Investigation coverage | 10 |
+| Competing hypotheses | 5 |
+| Repair and verification | 5 |
+| Output and reproducibility | 5 |
+| **Total** | **100** |
+
+The evidence score is currently an auditable human assessment against
+`evaluation/scoring/sre-v2-rubric.md`; the weighted total is fixed, but the
+repository does not yet contain a deterministic subscore calculator for each
+dimension. Until such a calculator exists, record the nine subscores and a short
+case-specific justification. Do not present this track as an official ITBench
+score.
+
+### Reporting requirements
+
+For each run, report both `official_gt_score` and `evidence_quality_score`, the
+nine evidence subscores, the canonical predicted entities, `TP`/`FP`/`FN`, run
+validity, and any `DATA`, `GRADER`, or infrastructure limitation. Invalid or
+protocol-broken runs are preserved as experiment records but are not compared as
+valid diagnosis scores. Historical `ground_truth_match` and `evidence_quality`
+fields may be retained for compatibility, but their meanings must follow this
+contract.
+
 ## Workflow Routing
 
 1. **Raw data to Case**: read [references/data-preparation.md](references/data-preparation.md). Identify the raw source, create or verify the Agent-visible derived Case, check Ground Truth isolation, and record the manifest.
@@ -26,6 +94,8 @@ Do not edit the prompt, schema, runner, or rubric as part of an ordinary case ru
 3. **Assess a run**: use the same V6 reference and the rubric. Inspect `answer.json`, `raw_output.jsonl`, `metrics.json`, exit status, and `/work/diagnosis.json` evidence before assigning a quality grade.
 4. **Record a result**: append the model's run/session, evidence, causal quality, failures, metrics, and fine-tuning recommendation to `evaluation/reports/model-evaluation-tracker.md`. Preserve prior records; retries use new run IDs.
 5. **Synchronize code**: read [references/synchronization.md](references/synchronization.md). Treat the shared Git remote as the code authority; either endpoint may create a commit, and the other endpoint updates with a fast-forward pull.
+
+For the paired comparison between Pi's default behavior and user-provided troubleshooting knowledge, use the dedicated [ITBench Case Pipeline skill](../itbench-case-pipeline/SKILL.md). It keeps historical prompt cohorts separate and registers completed, scored runs in the dashboard.
 
 ## Non-negotiable Invariants
 

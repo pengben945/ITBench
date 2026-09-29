@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ITBench Case 对照评测</title>
+<style>
+:root{--bd:#d8dee7;--hd:#f5f7fa;--ink:#1f2328;--muted:#68717d;--ok:#1a7f37;--warn:#9a6700;--bad:#cf222e;--blue:#0969da}
+*{box-sizing:border-box}
+body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;margin:0;color:var(--ink);background:#fff}
+header{padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;gap:14px;align-items:center;flex-wrap:wrap;position:sticky;top:0;background:#fff;z-index:5}
+h1{font-size:16px;margin:0}
+label{display:inline-flex;gap:6px;align-items:center}
+select,input[type=text]{padding:5px 7px;border:1px solid var(--bd);border-radius:6px;background:#fff}
+button,.button{padding:4px 9px;border:1px solid var(--bd);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer;text-decoration:none;white-space:nowrap}
+button:hover,.button:hover{border-color:#8c959f}
+button:disabled{cursor:not-allowed;color:#8c959f;background:#f6f8fa}
+.wrap{padding:12px 16px}
+.dim{color:var(--muted)}
+.filters-note{font-size:12px;color:var(--muted)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.cohort{border:1px solid var(--bd);border-radius:9px;min-width:0;overflow:hidden}
+.cohort-head{padding:10px 12px;background:var(--hd);border-bottom:1px solid var(--bd)}
+.cohort-head h2{font-size:15px;margin:0 0 5px}
+.cohort-head p{margin:0;color:var(--muted)}
+.metrics{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-variant-numeric:tabular-nums}
+.metric strong{color:var(--ink)}
+.runlist{overflow:auto;max-height:calc(100vh - 245px)}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:#fff;z-index:1}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:hover td{background:#fafbfc}
+.score{display:inline-block;padding:1px 7px;border-radius:10px;font-weight:600}
+.s0{background:#ffebe9;color:var(--bad)}.s50{background:#fff8c5;color:var(--warn)}.s100{background:#dafbe1;color:var(--ok)}
+.invalid{color:var(--bad);font-weight:600}.valid{color:var(--ok);font-weight:600}
+.delta{margin:0 0 10px;padding:8px 12px;border:1px solid var(--bd);border-radius:8px;background:#fafbfc;font-variant-numeric:tabular-nums}
+.history{margin-top:14px;border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+.history summary{cursor:pointer;font-weight:600}
+.history-table-wrap{overflow:auto;max-height:50vh;margin-top:8px}
+.history table{min-width:1150px}
+.history th{cursor:pointer;user-select:none;top:0}
+.run-detail{max-width:320px;white-space:normal}
+.run-detail summary{cursor:pointer;color:var(--blue)}
+.run-detail dl{display:grid;grid-template-columns:130px 1fr;gap:3px 8px;margin:6px 0}
+.run-detail dt{font-weight:600}.run-detail dd{margin:0}
+.run-detail p{margin:5px 0}
+td.note{white-space:normal;min-width:150px;max-width:300px}
+td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2px solid var(--blue);background:#fff}
+#addform{display:none;gap:6px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--bd);background:var(--hd)}
+#error{color:var(--bad);font-weight:600}
+@media(max-width:900px){.split{grid-template-columns:1fr}.runlist{max-height:55vh}}
+</style>
+</head>
+<body>
+<header>
+  <h1>ITBench Case 对照评测</h1>
+  <label>Case <select id="fCase"><option value="">全部</option></select></label>
+  <label>模型 <select id="fModel"><option value="">全部</option></select></label>
+  <input type="text" id="fQ" placeholder="搜索 session / 备注" size="18">
+  <label>Pi-Agent 链接模板 <input type="text" id="urlTpl" size="34" placeholder="例如 http://host:port/session/{session}"></label>
+  <button id="btnAdd" type="button">+ 手工记录</button>
+  <span class="filters-note">两栏使用同一 Case / 模型筛选</span>
+  <span id="error" role="alert"></span>
+</header>
+<div id="addform">
+  <input type="text" id="aBatch" placeholder="批次" size="16">
+  <input type="text" id="aCase" placeholder="Case 如 Scenario-2" size="14">
+  <input type="text" id="aModel" placeholder="模型" size="16">
+  <input type="text" id="aRun" placeholder="run_id" size="8">
+  <input type="text" id="aSession" placeholder="session_id" size="28">
+  <input type="text" id="aOff" placeholder="官方分 0-1" size="10">
+  <input type="text" id="aEv" placeholder="证据分 0-100" size="12">
+  <input type="text" id="aNotes" placeholder="备注" size="24">
+  <button id="aSave" type="button">保存</button>
+</div>
+<main class="wrap">
+  <div class="delta" id="delta">加载对照数据…</div>
+  <div class="split">
+    <section class="cohort">
+      <div class="cohort-head">
+        <h2>Pi-Agent 原生</h2>
+        <p>批次：<code>v6-pi-native</code> · Pi 默认系统提示 + 中性任务</p>
+        <div class="metrics" id="nativeStats"></div>
+      </div>
+      <div class="runlist"><table><thead><tr>
+        <th>运行</th><th>状态</th><th>官方分</th><th>证据分</th><th>耗时</th><th>工具</th><th>Tokens</th><th>成本$</th><th>Pi-Agent</th>
+      </tr></thead><tbody id="nativeRows"></tbody></table></div>
+    </section>
+    <section class="cohort">
+      <div class="cohort-head">
+        <h2>用户排查知识增强</h2>
+        <p>批次：<code>v6-user-knowledge</code> · 与左栏使用相同 Pi 默认系统提示，额外提供排查知识</p>
+        <div class="metrics" id="knowledgeStats"></div>
+      </div>
+      <div class="runlist"><table><thead><tr>
+        <th>运行</th><th>状态</th><th>官方分</th><th>证据分</th><th>耗时</th><th>工具</th><th>Tokens</th><th>成本$</th><th>Pi-Agent</th>
+      </tr></thead><tbody id="knowledgeRows"></tbody></table></div>
+    </section>
+  </div>
+  <details class="history">
+    <summary>全部运行记录与历史批次</summary>
+    <div class="history-table-wrap">
+      <table id="historyTable"><thead><tr></tr></thead><tbody></tbody></table>
+    </div>
+  </details>
+</main>
+<script>
+const COHORTS=[
+  {id:"v6-pi-native",label:"Pi-Agent 原生",rows:"nativeRows",stats:"nativeStats"},
+  {id:"v6-user-knowledge",label:"用户排查知识增强",rows:"knowledgeRows",stats:"knowledgeStats"}
+];
+const COLS=[
+  ["batch","批次"],["scenario","Case"],["model","模型"],["run_id","run"],
+  ["session_id","session"],["official_score","官方分"],["evidence_score","证据分"],
+  ["protocol_valid","协议"],["diagnosis_valid","诊断"],["diagnosis_status","状态"],
+  ["duration_seconds","耗时s"],["tool_calls","工具"],["total_tokens","tokens"],["cost","成本$"],
+  ["started_at","开始时间"],["notes","备注"]
+];
+let DATA={runs:[],manual:[]},sortKey="started_at",sortDir=-1;
+const $=id=>document.getElementById(id);
+const key=r=>r.key;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function all(){return DATA.runs.concat(DATA.manual);}
+function unique(field){return [...new Set(all().map(r=>r[field]).filter(Boolean))].sort();}
+function setError(message=""){$("error").textContent=message;}
+async function load(){
+  try{
+    const response=await fetch("/api/data");
+    if(!response.ok)throw new Error(`数据读取失败 (${response.status})`);
+    DATA=await response.json();
+    DATA.manual.forEach(r=>{r.has_override=true;});
+    buildFilters();render();
+    setError("");
+  }catch(error){setError(error.message);}
+}
+function buildFilters(){
+  for(const [id,field] of [["fCase","scenario"],["fModel","model"]]){
+    const select=$(id),selected=select.value;
+    select.innerHTML='<option value="">全部</option>'+unique(field).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    if([...select.options].some(option=>option.value===selected))select.value=selected;
+    select.onchange=render;
+  }
+  $("fQ").oninput=render;
+  $("urlTpl").value=localStorage.getItem("urlTpl")||"";
+  $("urlTpl").onchange=event=>{localStorage.setItem("urlTpl",event.target.value);render();};
+  $("btnAdd").onclick=()=>$("addform").style.display="flex";
+  $("aSave").onclick=saveManual;
+  document.querySelector("#historyTable thead tr").innerHTML=COLS.map(([field,label])=>
+    `<th data-k="${field}">${label}</th>`).join("")+"<th>Pi-Agent</th>";
+  document.querySelectorAll("#historyTable th[data-k]").forEach(th=>th.onclick=()=>{
+    const field=th.dataset.k;
+    if(sortKey===field)sortDir*=-1;else{sortKey=field;sortDir=1;}
+    renderHistory();
+  });
+}
+async function saveManual(){
+  try{
+    const response=await fetch("/api/manual",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      batch:$("aBatch").value,scenario:$("aCase").value,model:$("aModel").value,
+      run_id:$("aRun").value,session_id:$("aSession").value,
+      official_score:num($("aOff").value),evidence_score:num($("aEv").value),notes:$("aNotes").value
+    })});
+    if(!response.ok)throw new Error(`保存失败 (${response.status})`);
+    $("addform").style.display="none";await load();
+  }catch(error){setError(error.message);}
+}
+const num=value=>value===""?null:Number(value);
+function filtered(){
+  const scenario=$("fCase").value,model=$("fModel").value,q=$("fQ").value.toLowerCase();
+  return all().filter(run=>
+    (!scenario||run.scenario===scenario)&&(!model||run.model===model)&&
+    (!q||(run.session_id||"").toLowerCase().includes(q)||(run.notes||"").toLowerCase().includes(q))
+  );
+}
+function officialPercent(value){
+  if(value==null)return null;
+  return value<=1?value*100:value;
+}
+function scorePill(value,evidence=false){
+  if(value==null)return '<span class="dim">—</span>';
+  const percent=evidence?value:officialPercent(value);
+  const cls=percent===0?"s0":percent<100?"s50":"s100";
+  return `<span class="score ${cls}">${percent.toFixed(1)}${evidence?"":"%"}</span>`;
+}
+function diagnosisValid(run){return run.diagnosis_valid??run.protocol_valid;}
+function sessionUrl(session){
+  const template=$("urlTpl").value.trim();
+  if(!session||!template.includes("{session}"))return null;
+  try{
+    const target=new URL(template.replaceAll("{session}",encodeURIComponent(session)),location.href);
+    return target.protocol==="http:"||target.protocol==="https:"?target.href:null;
+  }catch{return null;}
+}
+function jumpButton(session){
+  return `<button class="open-session" type="button" data-session="${esc(session||"")}" ${sessionUrl(session)?"":"disabled"}>打开 Pi-Agent</button>`;
+}
+function wireJumpButtons(root=document){
+  root.querySelectorAll("button.open-session:not(:disabled)").forEach(button=>button.onclick=()=>{
+    const target=sessionUrl(button.dataset.session);
+    if(target)window.open(target,"_blank","noopener,noreferrer");
+  });
+}
+function metricAverage(rows,field){
+  const values=rows.map(row=>row[field]).filter(value=>typeof value==="number"&&Number.isFinite(value));
+  return values.length?values.reduce((sum,value)=>sum+value,0)/values.length:null;
+}
+function scoreDetails(run){
+  const dimensions=run.evidence_subscores||{};
+  if(!Object.keys(dimensions).length&&!run.predicted_entities?.length&&!run.failure_categories?.length)return "";
+  const breakdown=Object.entries(dimensions).map(([name,result])=>
+    `<dt>${esc(name)}</dt><dd>${esc(result.score)}/${esc(result.max_score)} — ${esc(result.rationale)}</dd>`).join("");
+  const entities=(label,values)=>values?.length?`<p><strong>${label}:</strong> ${values.map(esc).join(", ")}</p>`:"";
+  return `<details class="run-detail"><summary>评分 / 证据详情</summary>
+    <dl>${breakdown}</dl>${entities("预测实体",run.predicted_entities)}
+    ${entities("TP",run.true_positives)}${entities("FP",run.false_positives)}
+    ${entities("FN",run.false_negatives)}${entities("失败分类",run.failure_categories)}
+    ${run.notes?`<p>${esc(run.notes)}</p>`:""}</details>`;
+}
+function cohortRows(batch){
+  const scenario=$("fCase").value,model=$("fModel").value,q=$("fQ").value.toLowerCase();
+  return DATA.runs.filter(run=>run.batch===batch&&(!scenario||run.scenario===scenario)&&(!model||run.model===model)&&
+    (!q||(run.session_id||"").toLowerCase().includes(q)||(run.notes||"").toLowerCase().includes(q)))
+    .sort((a,b)=>(b.started_at||"").localeCompare(a.started_at||""));
+}
+function status(run){
+  const protocol=run.protocol_valid==null?"协议未知":run.protocol_valid?"协议通过":"协议失败";
+  const diagnosis=diagnosisValid(run)?"诊断有效":"诊断无效";
+  return `<span class="${run.protocol_valid===false||!diagnosisValid(run)?"invalid":"valid"}">${protocol} / ${diagnosis}</span>`;
+}
+function renderCohort(cohort){
+  const rows=cohortRows(cohort.id),valid=rows.filter(run=>run.protocol_valid!==false&&diagnosisValid(run));
+  const avgOfficial=metricAverage(valid,"official_score"),avgEvidence=metricAverage(valid,"evidence_score");
+  const avgDuration=metricAverage(valid,"duration_seconds"),avgCost=metricAverage(valid,"cost");
+  $(cohort.stats).innerHTML=`<span class="metric">运行 <strong>${rows.length}</strong></span>
+    <span class="metric">有效 <strong>${valid.length}</strong></span>
+    <span class="metric">官方均分 <strong>${avgOfficial==null?"—":(officialPercent(avgOfficial)).toFixed(1)+"%"}</strong></span>
+    <span class="metric">证据均分 <strong>${avgEvidence==null?"—":avgEvidence.toFixed(1)}</strong></span>
+    <span class="metric">平均耗时 <strong>${avgDuration==null?"—":avgDuration.toFixed(0)+"s"}</strong></span>
+    <span class="metric">平均成本 <strong>${avgCost==null?"—":"$"+avgCost.toFixed(3)}</strong></span>`;
+  $(cohort.rows).innerHTML=rows.length?rows.map(run=>`<tr>
+    <td title="${esc(run.session_id||"")}">${esc(run.run_id)}${scoreDetails(run)}</td>
+    <td>${status(run)}</td>
+    <td class="num">${scorePill(run.official_score)}</td>
+    <td class="num">${scorePill(run.evidence_score,true)}</td>
+    <td class="num">${run.duration_seconds??"—"}</td>
+    <td class="num">${run.tool_calls??"—"}</td>
+    <td class="num">${run.total_tokens?(run.total_tokens/1e6).toFixed(2)+"M":"—"}</td>
+    <td class="num">${run.cost==null?"—":"$"+run.cost.toFixed(3)}</td>
+    <td>${jumpButton(run.session_id)}</td>
+  </tr>`).join(""):'<tr><td colspan="9" class="dim">当前 Case / 模型下暂无此批次记录</td></tr>';
+  wireJumpButtons($(cohort.rows).parentElement);
+  return {rows,valid,avgOfficial,avgEvidence,avgDuration,avgCost};
+}
+function render(){
+  const cohorts=COHORTS.map(renderCohort);
+  const left=cohorts[0],right=cohorts[1];
+  const delta=(field,leftValue,rightValue,suffix="")=>{
+    if(leftValue==null||rightValue==null)return `${field}差值：—`;
+    const a=field==="官方均分"?officialPercent(leftValue):leftValue;
+    const b=field==="官方均分"?officialPercent(rightValue):rightValue;
+    const difference=b-a;
+    return `${field}差值（增强 − 原生）：${difference>0?"+":""}${difference.toFixed(1)}${suffix}`;
+  };
+  $("delta").textContent=(left.rows.length||right.rows.length)?
+    `${delta("官方均分",left.avgOfficial,right.avgOfficial,"%")}　·　${delta("证据均分",left.avgEvidence,right.avgEvidence)}　·　${delta("平均耗时",left.avgDuration,right.avgDuration,"s")}　·　${delta("平均成本",left.avgCost,right.avgCost,"$")}`:
+    "当前筛选下暂无新对照记录；历史批次可在下方展开查看";
+  renderHistory();
+}
+function renderHistory(){
+  const rows=filtered().sort((a,b)=>{
+    const x=a[sortKey]??"",y=b[sortKey]??"";
+    return (x>y?1:x<y?-1:0)*sortDir;
+  });
+  document.querySelector("#historyTable tbody").innerHTML=rows.map(run=>`<tr>
+    ${COLS.map(([field])=>{
+      if(field==="official_score")return `<td class="num" data-k="${esc(key(run))}" data-f="${field}" data-edit="true" title="双击修改">${scorePill(run[field])}</td>`;
+      if(field==="evidence_score")return `<td class="num" data-k="${esc(key(run))}" data-f="${field}" data-edit="true" title="双击修改">${scorePill(run[field],true)}</td>`;
+      if(field==="protocol_valid")return `<td>${run[field]==null?'<span class="dim">—</span>':run[field]?"✓":'<span class="invalid">✗</span>'}</td>`;
+      if(field==="diagnosis_valid")return `<td>${diagnosisValid(run)?'<span class="valid">有效</span>':'<span class="invalid">无效</span>'}</td>`;
+      if(field==="session_id")return `<td title="${esc(run[field]||"")}">${esc(run[field]?run[field].slice(0,13)+"…":"—")}</td>`;
+      if(field==="notes")return `<td class="note" data-k="${esc(key(run))}" data-f="notes" data-edit="true" title="双击编辑">${esc(run[field]||"")}</td>`;
+      if(field==="total_tokens")return `<td class="num">${run[field]?(run[field]/1e6).toFixed(2)+"M":"—"}</td>`;
+      if(field==="cost")return `<td class="num">${run[field]==null?"—":"$"+Number(run[field]).toFixed(3)}</td>`;
+      return `<td>${esc(run[field]??"")}</td>`;
+    }).join("")}
+    <td>${jumpButton(run.session_id)}</td>
+  </tr>`).join("");
+  document.querySelectorAll("#historyTable td[data-edit=true]").forEach(cell=>cell.ondblclick=()=>edit(cell));
+  wireJumpButtons($("historyTable"));
+}
+async function edit(cell){
+  const field=cell.dataset.f,keyValue=cell.dataset.k;
+  const current=all().find(run=>key(run)===keyValue)?.[field]??"";
+  cell.contentEditable=true;cell.textContent=current;cell.focus();
+  cell.onblur=async()=>{
+    cell.contentEditable=false;
+    const value=cell.textContent.trim();
+    const body={key:keyValue,[field]:field==="notes"?value:(value===""?null:Number(value))};
+    if(field==="notes"&&value==="")body.notes=null;
+    try{
+      const response=await fetch("/api/override",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(!response.ok)throw new Error(`更新失败 (${response.status})`);
+      await load();
+    }catch(error){setError(error.message);}
+  };
+}
+load();
+</script>
+</body>
+</html>

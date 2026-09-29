@@ -52,6 +52,34 @@ V5 保留 V4 的调查与归因原则，将最终输出精简为 `summary`、`fi
 
 V6 保留 V5 的精简输出结构，并要求任何“发生变化”的结论必须由前后状态或变更事件支持；只有当前状态时，只能归因为条件不匹配或候选触发源。
 
+### Pi-Agent 原生与用户排查知识对照
+
+新的成对对照使用固定批次：
+
+- `v6-pi-native`（看板显示“Pi-Agent 原生”）：Pi 默认系统提示 + 中性 Case 任务。
+- `v6-user-knowledge`（看板显示“用户排查知识增强”）：相同 Pi 默认系统提示、Case 任务契约、Schema、工具和沙箱，额外在 user prompt 中提供排查知识。
+
+两组只改变用户提供的排查知识。旧批次 `v6-user-full`、`v6-user-minimal` 和 `v6-system` 保留历史标签，不映射到新对照，以免把不同 Prompt 条件混为一谈。
+
+在已准备 Case 的评测工作区中运行一组对照：
+
+```bash
+PI_EVAL_PROVIDER=deepseek \
+PI_EVAL_MODEL=deepseek-v4-flash \
+PI_EVAL_THINKING=high \
+evaluation/scripts/run_case_comparison_v6.sh Scenario-1
+```
+
+脚本先对两组运行执行 Bubblewrap 预检，再顺序调用模型。完成后按 `evaluation/schemas/run-score-v1.schema.json` 分别评分，并登记到看板：
+
+```bash
+python3 evaluation/scripts/register_scored_run.py runs/Scenario-1/run-NNN
+```
+
+看板以固定左右栏展示这两个批次，Case 和模型使用共用下拉框筛选。Pi-Agent 跳转按钮使用看板顶部配置的 URL 模板，必须填入部署环境实际支持的路由并包含 `{session}`；不要假设 WebUI 链接格式。历史记录仍保留在“全部运行记录与历史批次”中。
+
+每次运行都保留新的 run ID。协议无效或诊断无效的记录照常登记，但不能带有效诊断分数。Ground Truth 仅供评分使用，绝不能提供给被评测的 Pi-Agent。
+
 ## 文件
 
 ```text
@@ -68,11 +96,14 @@ evaluation/
 │   ├── sre_system_v5.md
 │   ├── sre_diagnosis_v5.md
 │   ├── sre_system_v6.md
-│   └── sre_diagnosis_v6.md
+│   ├── sre_diagnosis_v6.md
+│   ├── sre_diagnosis_v6_pi_native.md
+│   └── sre_diagnosis_v6_user_knowledge.md
 ├── schemas/
 │   ├── diagnosis-v1.schema.json
 │   ├── diagnosis-v2.schema.json
-│   └── diagnosis-v3.schema.json
+│   ├── diagnosis-v3.schema.json
+│   └── run-score-v1.schema.json
 ├── run-configs/
 │   ├── sre-v1.json
 │   ├── sre-v2.json
@@ -82,6 +113,10 @@ evaluation/
 │   └── sre-v6.json
 ├── scoring/
 │   └── sre-v2-rubric.md
+├── dashboard/
+│   ├── index.html
+│   ├── server.py
+│   └── test_server.py
 └── scripts/
     ├── prepare_scenario_v2.sh
     ├── run_scenario_v1.sh
@@ -90,8 +125,15 @@ evaluation/
     ├── run_scenario_v4.sh
     ├── run_scenario_v5.sh
     ├── run_scenario_v6.sh
+    ├── run_scenario_v6_pi_native.sh
+    ├── run_scenario_v6_user_knowledge.sh
+    ├── run_case_comparison_v6.sh
+    ├── register_scored_run.py
+    ├── test_register_scored_run.py
     └── summarize_run.py
 ```
+
+The dashboard implementation and a focused registration/API test live in `evaluation/dashboard/`.
 
 ## 准备 Case
 

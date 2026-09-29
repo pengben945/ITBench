@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ITBench scored Pi run",
+  "type": "object",
+  "required": [
+    "score_version",
+    "diagnosis_valid",
+    "official_gt_score",
+    "evidence_quality_score",
+    "evidence_subscores",
+    "predicted_entities",
+    "true_positives",
+    "false_positives",
+    "false_negatives",
+    "failure_categories",
+    "notes"
+  ],
+  "properties": {
+    "score_version": {
+      "const": "1.0",
+      "description": "Version of this per-run scoring record contract."
+    },
+    "diagnosis_valid": { "type": "boolean" },
+    "official_gt_score": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Official root-cause entity score, before percentage display."
+    },
+    "evidence_quality_score": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Human-audited project evidence rubric score."
+    },
+    "evidence_subscores": {
+      "type": "object",
+      "properties": {
+        "trigger_identification": { "$ref": "#/$defs/subscore25" },
+        "technical_bottleneck": { "$ref": "#/$defs/subscore10" },
+        "causal_propagation": { "$ref": "#/$defs/subscore15" },
+        "temporal_consistency": { "$ref": "#/$defs/subscore10" },
+        "evidence_quality": { "$ref": "#/$defs/subscore15" },
+        "investigation_coverage": { "$ref": "#/$defs/subscore10" },
+        "competing_hypotheses": { "$ref": "#/$defs/subscore5" },
+        "repair_and_verification": { "$ref": "#/$defs/subscore5" },
+        "output_and_reproducibility": { "$ref": "#/$defs/subscore5" }
+      },
+      "additionalProperties": false
+    },
+    "predicted_entities": { "$ref": "#/$defs/stringArray" },
+    "true_positives": { "$ref": "#/$defs/stringArray" },
+    "false_positives": { "$ref": "#/$defs/stringArray" },
+    "false_negatives": { "$ref": "#/$defs/stringArray" },
+    "failure_categories": {
+      "type": "array",
+      "items": {
+        "enum": ["DATA", "PARSING", "RETRIEVAL", "REASONING", "ENTITY", "OUTPUT", "INFRA", "GRADER"]
+      },
+      "uniqueItems": true
+    },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "diagnosis_valid": { "const": true } } },
+      "then": {
+        "properties": {
+          "official_gt_score": { "type": "number" },
+          "evidence_quality_score": { "type": "number" },
+          "evidence_subscores": {
+            "required": [
+              "trigger_identification",
+              "technical_bottleneck",
+              "causal_propagation",
+              "temporal_consistency",
+              "evidence_quality",
+              "investigation_coverage",
+              "competing_hypotheses",
+              "repair_and_verification",
+              "output_and_reproducibility"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "official_gt_score": { "type": "null" },
+          "evidence_quality_score": { "type": "null" },
+          "evidence_subscores": { "maxProperties": 0 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "subscore": {
+      "type": "object",
+      "required": ["score", "max_score", "rationale"],
+      "properties": {
+        "score": { "type": "number", "minimum": 0 },
+        "max_score": { "type": "number" },
+        "rationale": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "subscore25": {
+      "allOf": [{ "$ref": "#/$defs/subscore" }],
+      "properties": {
+        "score": { "maximum": 25 },
+        "max_score": { "const": 25 }
+      }
+    },
+    "subscore15": {
+      "allOf": [{ "$ref": "#/$defs/subscore" }],
+      "properties": {
+        "score": { "maximum": 15 },
+        "max_score": { "const": 15 }
+      }
+    },
+    "subscore10": {
+      "allOf": [{ "$ref": "#/$defs/subscore" }],
+      "properties": {
+        "score": { "maximum": 10 },
+        "max_score": { "const": 10 }
+      }
+    },
+    "subscore5": {
+      "allOf": [{ "$ref": "#/$defs/subscore" }],
+      "properties": {
+        "score": { "maximum": 5 },
+        "max_score": { "const": 5 }
+      }
+    }
+  },
+  "additionalProperties": false
+}
