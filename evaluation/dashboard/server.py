@@ -9,6 +9,7 @@ notes and manual records). Bind address is 127.0.0.1 only.
 
 API:
   GET    /api/data       -> {"runs": [...merged...], "manual": [...]}
+  GET    /api/models     -> safe model IDs/names from Pi-Agent models.json
   PUT    /api/override   body {"key", "official_score"?, "evidence_score"?,
                                "protocol_valid"?, "notes"?}  (null clears a field)
   POST   /api/manual     body {record fields}  -> appends a manual record
@@ -21,6 +22,7 @@ and user notes are not rewritten by the registration endpoint.
 import argparse
 import json
 import math
+import os
 import re
 import threading
 import time
@@ -32,6 +34,9 @@ BASE = Path(__file__).resolve().parent
 RUNS = BASE / "runs.json"
 NOTES = BASE / "notes.json"
 REGISTERED_RUNS = BASE / "registered-runs.json"
+PI_MODELS_CONFIG = Path(os.environ.get(
+    "PI_AGENT_MODELS_FILE", Path.home() / ".pi" / "agent" / "models.json"
+))
 LOCK = threading.Lock()
 
 SCORE_DIMENSIONS = {
@@ -65,6 +70,53 @@ def load_records(path):
     if not isinstance(records, list):
         raise ValueError(f"Expected a JSON array in {path}")
     return records
+
+
+def pi_model_catalog(path=PI_MODELS_CONFIG):
+    config = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(config, dict) or not isinstance(config.get("providers"), dict):
+        raise ValueError("Expected a providers object in Pi-Agent models.json")
+
+    models = {}
+    for provider, provider_config in config["providers"].items():
+        if not isinstance(provider_config, dict):
+            raise ValueError(f"Provider {provider} must be an object")
+        configured_models = provider_config.get("models", [])
+        if not isinstance(configured_models, list):
+            raise ValueError(f"Provider {provider} models must be an array")
+        for configured_model in configured_models:
+            if not isinstance(configured_model, dict):
+                raise ValueError(f"Provider {provider} model entries must be objects")
+            model_id = configured_model.get("id")
+            if not isinstance(model_id, str) or not model_id.strip():
+                raise ValueError(f"Provider {provider} has a model without an id")
+            model_id = model_id.strip()
+            model_name = configured_model.get("name", model_id)
+            if model_name is not None and not isinstance(model_name, str):
+                raise ValueError(f"Model {model_id} name must be a string")
+            model_name = model_name.strip() if model_name else model_id
+            entry = models.setdefault(
+                model_id, {"id": model_id, "name": model_name, "providers": set()}
+            )
+            if entry["name"] == model_id and model_name != model_id:
+                entry["name"] = model_name
+            entry["providers"].add(provider)
+
+    catalog = sorted(
+        models.values(),
+        key=lambda model: (model["name"].casefold(), model["id"].casefold()),
+    )
+    return {
+        "count": len(catalog),
+        "models": [
+            {
+                "id": model["id"],
+                "name": model["name"],
+                "provider": ", ".join(sorted(model["providers"])),
+            }
+            for model in catalog
+        ],
+    }
 
 
 def save_records(path, records):
@@ -246,6 +298,13 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length))
 
     def do_GET(self):
+        if self.path == "/api/models":
+            try:
+                return self._json(pi_model_catalog(PI_MODELS_CONFIG))
+            except FileNotFoundError:
+                return self._json({"error": "Pi-Agent models.json was not found"}, 503)
+            except (OSError, ValueError) as error:
+                return self._json({"error": f"Could not read Pi-Agent models.json: {error}"}, 500)
         if self.path == "/api/data":
             return self._json(merged())
         if self.path in ("/", "/index.html"):

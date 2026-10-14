@@ -115,5 +115,45 @@ class RegistrationTests(unittest.TestCase):
                 server.RUNS, server.NOTES, server.REGISTERED_RUNS = original
 
 
+class PiModelCatalogTests(unittest.TestCase):
+    def test_model_endpoint_returns_unique_model_metadata_only(self):
+        config = {
+            "providers": {
+                "provider-a": {
+                    "apiKey": "must-not-be-returned",
+                    "models": [{"id": "model-a", "name": "Model A"}],
+                },
+                "provider-b": {
+                    "models": [
+                        {"id": "model-a", "name": "Model A"},
+                        {"id": "model-b"},
+                    ],
+                },
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "models.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            original = server.PI_MODELS_CONFIG
+            server.PI_MODELS_CONFIG = config_path
+            httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+            thread = threading.Thread(target=httpd.serve_forever)
+            thread.start()
+            try:
+                with urlopen(f"http://127.0.0.1:{httpd.server_port}/api/models") as response:
+                    catalog = json.loads(response.read())
+                self.assertEqual(catalog["count"], 2)
+                self.assertEqual(
+                    {model["id"] for model in catalog["models"]},
+                    {"model-a", "model-b"},
+                )
+                self.assertNotIn("must-not-be-returned", json.dumps(catalog))
+            finally:
+                httpd.shutdown()
+                thread.join()
+                httpd.server_close()
+                server.PI_MODELS_CONFIG = original
+
+
 if __name__ == "__main__":
     unittest.main()

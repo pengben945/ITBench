@@ -95,6 +95,8 @@ contract.
 4. **Record a result**: append the model's run/session, evidence, causal quality, failures, metrics, and fine-tuning recommendation to `evaluation/reports/model-evaluation-tracker.md`. Preserve prior records; retries use new run IDs.
 5. **Synchronize code**: read [references/synchronization.md](references/synchronization.md). Treat the shared Git remote as the code authority; either endpoint may create a commit, and the other endpoint updates with a fast-forward pull.
 
+For curated SRE fine-tuning data, use [references/training-data.md](references/training-data.md). Keep official root-cause accuracy and evidence quality as separate gates, and never treat an unscored, invalid, or coached run as an ordinary one-shot positive.
+
 For the paired comparison between Pi's default behavior and user-provided troubleshooting knowledge, use the dedicated [ITBench Case Pipeline skill](../itbench-case-pipeline/SKILL.md). It keeps historical prompt cohorts separate and registers completed, scored runs in the dashboard.
 
 ## Non-negotiable Invariants
