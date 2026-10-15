@@ -82,6 +82,8 @@ python3 evaluation/scripts/register_scored_run.py runs/Scenario-1/run-NNN
 
 看板两个显示名为“Pi-Agent 原生”和“用户排查知识增强”；详细记录可查看原始批次。模型下拉框从 Pi-Agent 的 `~/.pi/agent/models.json` 实时读取唯一模型 ID 和显示名，选项只显示模型名称（未配置名称时回退到模型 ID），筛选使用模型 ID。默认读取看板进程用户的 Home 目录，也可用 `PI_AGENT_MODELS_FILE` 指定其他路径。API 不返回配置中的认证字段。Pi-Agent 跳转按钮使用看板顶部配置的 URL 模板，必须填入部署环境实际支持的路由并包含 `{session}`；不要假设 WebUI 链接格式。
 
+显示聚合对所有模型生效，模型下拉框可将统计限定到单一模型；历史批次映射只改变页面分组，不修改原始 batch、Prompt 快照或 `score.json`。
+
 每次运行都保留新的 run ID。协议无效或诊断无效的记录照常登记，但不能带有效诊断分数。Ground Truth 仅供评分使用，绝不能提供给被评测的 Pi-Agent。
 
 ## 文件
