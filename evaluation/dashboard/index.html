@@ -77,8 +77,6 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
     <option value="">选择批次</option>
     <option value="v6-pi-native">v6-pi-native · Pi-Agent 原生</option>
     <option value="v6-user-knowledge">v6-user-knowledge · 用户排查知识增强</option>
-    <option value="v6-user-minimal">v6-user-minimal · V6 最小任务提示</option>
-    <option value="v6-user-full">v6-user-full · V6 完整排查提示</option>
   </select>
   <input type="text" id="aCase" placeholder="Case 如 Scenario-2" size="14">
   <input type="text" id="aModel" placeholder="模型" size="16">
@@ -91,14 +89,14 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
 </div>
 <main class="wrap">
   <div class="cohort-pair-head">
-    <h2>当前新版对照</h2>
-    <p>两组使用相同的 Pi 默认系统提示、Case 任务契约、Schema、工具和沙箱；仅用户排查知识不同。</p>
+    <h2>当前两组显示聚合</h2>
+    <p>此页将历史 v6-user-minimal 映射到 v6-pi-native，将历史 v6-user-full 及 UserMessage 别名映射到 v6-user-knowledge；原始 batch 不会改写。历史提示条件与新版不同，合并均值是展示汇总，不是同一实验条件的纯对照。Review-only 记录仍不计正式均分。</p>
   </div>
   <div class="split">
     <section class="cohort">
       <div class="cohort-head">
         <h2>Pi-Agent 原生</h2>
-        <p>Pi 默认系统提示 + 中性 Case 任务，不追加排查知识。</p>
+        <p>聚合 v6-pi-native、v6-user-minimal 及最小任务提示历史别名。</p>
         <div class="metrics" id="nativeStats"></div>
       </div>
       <div class="runlist"><table><thead><tr>
@@ -110,7 +108,7 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
     <section class="cohort">
       <div class="cohort-head">
         <h2>用户排查知识增强</h2>
-        <p>保持相同 Pi 默认系统提示和任务契约，仅在 UserMessage 中追加排查知识。</p>
+        <p>聚合 v6-user-knowledge、v6-user-full 及完整排查提示历史别名。</p>
         <div class="metrics" id="knowledgeStats"></div>
       </div>
       <div class="runlist"><table><thead><tr>
@@ -120,38 +118,8 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
       </tr></thead><tbody id="knowledgeRows"></tbody></table></div>
     </section>
   </div>
-  <div class="split">
-    <section class="cohort">
-      <div class="cohort-head">
-        <h2>最小任务提示</h2>
-        <p>UserMessage 仅含任务、工作边界和输出契约，不含额外排查思路；System Prompt 为中性控制提示。</p>
-        <div class="metrics" id="minimalStats"></div>
-      </div>
-      <div class="runlist"><table><thead><tr>
-        <th>运行</th>
-        <th><span class="th-label">状态<button class="help-icon" type="button" aria-label="状态：协议通过表示 Runner 以 0 退出且 answer.json、metrics.json 均存在；诊断有效表示评分器接受该诊断。仅供人工复核的记录不计正式均分。" title="协议通过表示 Runner 以 0 退出且 answer.json、metrics.json 均存在；诊断有效表示评分器接受该诊断。仅供人工复核的记录不计正式均分。">?</button></span></th>
-        <th><span class="th-label">官方分<button class="help-icon" type="button" aria-label="官方分：按根因实体评分；若有漏报根因（FN）得0分，否则为 TP / (TP + FP) × 100%。TP为命中，FP为误报，FN为漏报。" title="按根因实体评分：若有漏报根因（FN）得0分，否则为 TP / (TP + FP) × 100%。TP为命中，FP为误报，FN为漏报。">?</button></span></th>
-        <th><span class="th-label">证据分<button class="help-icon" type="button" aria-label="证据分：0到100分，九项加权评分相加，最高分依次为触发识别25、技术瓶颈10、因果传播15、时间一致性10、证据质量15、调查覆盖10、竞争假设5、修复与验证5、输出与可复现性5。" title="0–100分，九项加权分相加：触发识别25、技术瓶颈10、因果传播15、时间一致性10、证据质量15、调查覆盖10、竞争假设5、修复与验证5、输出与可复现性5。">?</button></span></th>
-        <th>耗时</th><th>工具</th><th>Tokens</th><th>成本$</th><th>Pi-Agent</th>
-      </tr></thead><tbody id="minimalRows"></tbody></table></div>
-    </section>
-    <section class="cohort">
-      <div class="cohort-head">
-        <h2>完整排查提示</h2>
-        <p>UserMessage 合并角色、排查思路、任务和输出契约；同提示词的人工复核记录并入展示，但不计入正式均分。</p>
-        <div class="metrics" id="fullStats"></div>
-      </div>
-      <div class="runlist"><table><thead><tr>
-        <th>运行</th>
-        <th><span class="th-label">状态<button class="help-icon" type="button" aria-label="状态：协议通过表示 Runner 以 0 退出且 answer.json、metrics.json 均存在；诊断有效表示评分器接受该诊断。仅供人工复核的记录不计正式均分。" title="协议通过表示 Runner 以 0 退出且 answer.json、metrics.json 均存在；诊断有效表示评分器接受该诊断。仅供人工复核的记录不计正式均分。">?</button></span></th>
-        <th><span class="th-label">官方分<button class="help-icon" type="button" aria-label="官方分：按根因实体评分；若有漏报根因（FN）得0分，否则为 TP / (TP + FP) × 100%。TP为命中，FP为误报，FN为漏报。" title="按根因实体评分：若有漏报根因（FN）得0分，否则为 TP / (TP + FP) × 100%。TP为命中，FP为误报，FN为漏报。">?</button></span></th>
-        <th><span class="th-label">证据分<button class="help-icon" type="button" aria-label="证据分：0到100分，九项加权评分相加，最高分依次为触发识别25、技术瓶颈10、因果传播15、时间一致性10、证据质量15、调查覆盖10、竞争假设5、修复与验证5、输出与可复现性5。" title="0–100分，九项加权分相加：触发识别25、技术瓶颈10、因果传播15、时间一致性10、证据质量15、调查覆盖10、竞争假设5、修复与验证5、输出与可复现性5。">?</button></span></th>
-        <th>耗时</th><th>工具</th><th>Tokens</th><th>成本$</th><th>Pi-Agent</th>
-      </tr></thead><tbody id="fullRows"></tbody></table></div>
-    </section>
-  </div>
   <details class="history">
-    <summary>所有新版与历史批次的详细记录与备注</summary>
+    <summary>两组显示聚合中的详细记录、原始批次与备注</summary>
     <div class="history-table-wrap">
       <table id="historyTable"><thead><tr></tr></thead><tbody></tbody></table>
     </div>
@@ -160,21 +128,21 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
 <script>
 const COHORTS=[
   {id:"v6-pi-native",label:"Pi-Agent 原生",rows:"nativeRows",stats:"nativeStats"},
-  {id:"v6-user-knowledge",label:"用户排查知识增强",rows:"knowledgeRows",stats:"knowledgeStats"},
-  {id:"v6-user-minimal",label:"V6 最小任务提示",rows:"minimalRows",stats:"minimalStats"},
-  {id:"v6-user-full",label:"V6 完整排查提示",rows:"fullRows",stats:"fullStats"}
+  {id:"v6-user-knowledge",label:"用户排查知识增强",rows:"knowledgeRows",stats:"knowledgeStats"}
 ];
 const DISPLAYED_BATCHES=new Set(COHORTS.map(cohort=>cohort.id));
 const BATCH_DISPLAY_ALIASES=new Map([
-  ["v6-minimal-user-message","v6-user-minimal"],
-  ["v6-minimal-user-message-20260922T011210Z","v6-user-minimal"],
-  ["v6-minimal-user-message-glm-5-3-20261015","v6-user-minimal"],
-  ["v6-user-message","v6-user-full"],
-  ["v6-user-message-20260921T085807Z","v6-user-full"],
-  ["v6-user-message-gpt56-luna-20261015","v6-user-full"],
-  ["v6-user-message-glm-5-3-20261015","v6-user-full"],
-  ["v6-user-message-castrel-neohorse-1-4b-base-review-only","v6-user-full"],
-  ["v6-user-message-sft-v001-review-only","v6-user-full"]
+  ["v6-user-minimal","v6-pi-native"],
+  ["v6-minimal-user-message","v6-pi-native"],
+  ["v6-minimal-user-message-20260922T011210Z","v6-pi-native"],
+  ["v6-minimal-user-message-glm-5-3-20261015","v6-pi-native"],
+  ["v6-user-full","v6-user-knowledge"],
+  ["v6-user-message","v6-user-knowledge"],
+  ["v6-user-message-20260921T085807Z","v6-user-knowledge"],
+  ["v6-user-message-gpt56-luna-20261015","v6-user-knowledge"],
+  ["v6-user-message-glm-5-3-20261015","v6-user-knowledge"],
+  ["v6-user-message-castrel-neohorse-1-4b-base-review-only","v6-user-knowledge"],
+  ["v6-user-message-sft-v001-review-only","v6-user-knowledge"]
 ]);
 const REVIEW_ONLY_BATCHES=new Set([
   "v6-user-message-castrel-neohorse-1-4b-base-review-only",
@@ -310,6 +278,7 @@ function metricAverage(rows,field){
 function scoreDetails(run){
   const dimensions=run.evidence_subscores||{};
   if(!Object.keys(dimensions).length&&!run.predicted_entities?.length&&!run.failure_categories?.length)return "";
+  const originalBatch=run.batch!==displayBatch(run)?`<p><strong>原始批次:</strong> ${esc(run.batch)}</p>`:"";
   const breakdown=Object.entries(dimensions).map(([name,result])=>
     `<dt>${esc(name)}</dt><dd>${esc(result.score)}/${esc(result.max_score)} — ${esc(result.rationale)}</dd>`).join("");
   const entities=(label,values)=>values?.length?`<p><strong>${label}:</strong> ${values.map(esc).join(", ")}</p>`:"";
@@ -317,6 +286,7 @@ function scoreDetails(run){
     <dl>${breakdown}</dl>${entities("预测实体",run.predicted_entities)}
     ${entities("TP",run.true_positives)}${entities("FP",run.false_positives)}
     ${entities("FN",run.false_negatives)}${entities("失败分类",run.failure_categories)}
+    ${originalBatch}
     ${run.notes?`<p>${esc(run.notes)}</p>`:""}</details>`;
 }
 function cohortRows(batch){
@@ -369,7 +339,7 @@ function renderHistory(){
     ${COLS.map(([field])=>{
       if(field==="batch"){
         const source=run.batch===displayBatch(run)?"":`原批次：${run.batch}`;
-        return `<td title="${esc(source)}">${esc(displayBatch(run))}${isReviewOnly(run)?' <span class="dim">复核</span>':""}</td>`;
+        return `<td title="${esc(source)}">${esc(displayBatch(run))}${source?` <span class="dim">(${esc(run.batch)})</span>`:""}${isReviewOnly(run)?' <span class="dim">复核</span>':""}</td>`;
       }
       if(field==="official_score")return `<td class="num" data-k="${esc(key(run))}" data-f="${field}" data-edit="true" title="双击修改">${scorePill(run[field])}</td>`;
       if(field==="evidence_score")return `<td class="num" data-k="${esc(key(run))}" data-f="${field}" data-edit="true" title="双击修改">${scorePill(run[field],true)}</td>`;
