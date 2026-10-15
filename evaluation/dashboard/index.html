@@ -19,6 +19,9 @@ button:disabled{cursor:not-allowed;color:#8c959f;background:#f6f8fa}
 .dim{color:var(--muted)}
 .filters-note{font-size:12px;color:var(--muted)}
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.cohort-pair-head{margin:4px 0 10px}
+.cohort-pair-head h2{font-size:16px;margin:0 0 4px}
+.cohort-pair-head p{margin:0;color:var(--muted)}
 .cohort{border:1px solid var(--bd);border-radius:9px;min-width:0;overflow:hidden}
 .cohort-head{padding:10px 12px;background:var(--hd);border-bottom:1px solid var(--bd)}
 .cohort-head h2{font-size:15px;margin:0 0 5px}
@@ -58,7 +61,7 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
 </head>
 <body>
 <header>
-  <h1>V6 UserMessage 提示词对照</h1>
+  <h1>ITBench V6 诊断对照</h1>
   <label>Case <select id="fCase"><option value="">全部</option></select></label>
   <label>模型（Pi-Agent 配置 <span id="modelCount">读取中</span> 个）
     <select id="fModel"><option value="">全部</option></select>
@@ -72,6 +75,8 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
 <div id="addform">
   <select id="aBatch" aria-label="批次">
     <option value="">选择批次</option>
+    <option value="v6-pi-native">v6-pi-native · Pi-Agent 原生</option>
+    <option value="v6-user-knowledge">v6-user-knowledge · 用户排查知识增强</option>
     <option value="v6-user-minimal">v6-user-minimal · V6 最小任务提示</option>
     <option value="v6-user-full">v6-user-full · V6 完整排查提示</option>
   </select>
@@ -85,6 +90,36 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
   <button id="aSave" type="button">保存</button>
 </div>
 <main class="wrap">
+  <div class="cohort-pair-head">
+    <h2>当前新版对照</h2>
+    <p>两组使用相同的 Pi 默认系统提示、Case 任务契约、Schema、工具和沙箱；仅用户排查知识不同。</p>
+  </div>
+  <div class="split">
+    <section class="cohort">
+      <div class="cohort-head">
+        <h2>Pi-Agent 原生</h2>
+        <p>Pi 默认系统提示 + 中性 Case 任务，不追加排查知识。</p>
+        <div class="metrics" id="nativeStats"></div>
+      </div>
+      <div class="runlist"><table><thead><tr>
+        <th>运行</th><th>状态</th><th title="按根因实体评分：漏报根因时为 0，否则按 TP / (TP + FP) 计算。">官方分</th>
+        <th title="九项证据质量子分之和，满分 100。">证据分</th>
+        <th>耗时</th><th>工具</th><th>Tokens</th><th>成本$</th><th>Pi-Agent</th>
+      </tr></thead><tbody id="nativeRows"></tbody></table></div>
+    </section>
+    <section class="cohort">
+      <div class="cohort-head">
+        <h2>用户排查知识增强</h2>
+        <p>保持相同 Pi 默认系统提示和任务契约，仅在 UserMessage 中追加排查知识。</p>
+        <div class="metrics" id="knowledgeStats"></div>
+      </div>
+      <div class="runlist"><table><thead><tr>
+        <th>运行</th><th>状态</th><th title="按根因实体评分：漏报根因时为 0，否则按 TP / (TP + FP) 计算。">官方分</th>
+        <th title="九项证据质量子分之和，满分 100。">证据分</th>
+        <th>耗时</th><th>工具</th><th>Tokens</th><th>成本$</th><th>Pi-Agent</th>
+      </tr></thead><tbody id="knowledgeRows"></tbody></table></div>
+    </section>
+  </div>
   <div class="split">
     <section class="cohort">
       <div class="cohort-head">
@@ -116,7 +151,7 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
     </section>
   </div>
   <details class="history">
-    <summary>这两个批次的详细记录与备注</summary>
+    <summary>所有新版与历史批次的详细记录与备注</summary>
     <div class="history-table-wrap">
       <table id="historyTable"><thead><tr></tr></thead><tbody></tbody></table>
     </div>
@@ -124,6 +159,8 @@ td.note[contenteditable=true],td[data-edit=true][contenteditable=true]{outline:2
 </main>
 <script>
 const COHORTS=[
+  {id:"v6-pi-native",label:"Pi-Agent 原生",rows:"nativeRows",stats:"nativeStats"},
+  {id:"v6-user-knowledge",label:"用户排查知识增强",rows:"knowledgeRows",stats:"knowledgeStats"},
   {id:"v6-user-minimal",label:"V6 最小任务提示",rows:"minimalRows",stats:"minimalStats"},
   {id:"v6-user-full",label:"V6 完整排查提示",rows:"fullRows",stats:"fullStats"}
 ];

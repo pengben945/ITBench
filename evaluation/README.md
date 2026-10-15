@@ -76,11 +76,11 @@ evaluation/scripts/run_case_comparison_v6.sh Scenario-1
 python3 evaluation/scripts/register_scored_run.py runs/Scenario-1/run-NNN
 ```
 
-当前看板聚焦展示历史提示词对照 `v6-user-minimal` / `v6-user-full`，Case 和模型使用共用下拉框筛选。前者仅在 UserMessage 中提供任务、边界和输出契约；后者将 V6 排查角色与任务内容合并放入 UserMessage。
+看板主面板展示新版对照 `v6-pi-native` / `v6-user-knowledge`：两组使用相同的 Pi 默认系统提示和 Case 任务契约，仅后者在 UserMessage 中追加排查知识。历史 UserMessage 对照 `v6-user-minimal` / `v6-user-full` 保留在下方，不与新版批次合并；前者仅在 UserMessage 中提供任务、边界和输出契约，后者将 V6 排查角色与任务内容合并放入 UserMessage。Case 和模型筛选对各组共用。
 
 批次别名只用于看板归组，不改写运行档案：`v6-minimal-user-message` 对应 `v6-user-minimal`；`v6-user-message` 对应 `v6-user-full`。两个 Neohorse `review-only` 批次的 8 个 Case 提示词哈希均与 `v6-user-full` 相同，因此也在该栏展示；其原批次名保留在详细记录中，人工复核记录不计入正式均分。`v6-system` 使用 V6 内容的 System/User 分置方式，与完整 UserMessage 条件不同，继续单独保留、不并入这两组。其他批次数据保留在数据源中，但不显示在看板。
 
-看板显示名为“最小任务提示”和“完整排查提示”，不会改变历史批次 ID 或 Prompt 快照。模型下拉框从 Pi-Agent 的 `~/.pi/agent/models.json` 实时读取唯一模型 ID 和显示名，选项只显示模型名称（未配置名称时回退到模型 ID），筛选使用模型 ID。默认读取看板进程用户的 Home 目录，也可用 `PI_AGENT_MODELS_FILE` 指定其他路径。API 不返回配置中的认证字段。Pi-Agent 跳转按钮使用看板顶部配置的 URL 模板，必须填入部署环境实际支持的路由并包含 `{session}`；不要假设 WebUI 链接格式。
+新版看板显示名为“Pi-Agent 原生”和“用户排查知识增强”，历史区域继续显示“最小任务提示”和“完整排查提示”，这些显示名都不会改变批次 ID 或 Prompt 快照。模型下拉框从 Pi-Agent 的 `~/.pi/agent/models.json` 实时读取唯一模型 ID 和显示名，选项只显示模型名称（未配置名称时回退到模型 ID），筛选使用模型 ID。默认读取看板进程用户的 Home 目录，也可用 `PI_AGENT_MODELS_FILE` 指定其他路径。API 不返回配置中的认证字段。Pi-Agent 跳转按钮使用看板顶部配置的 URL 模板，必须填入部署环境实际支持的路由并包含 `{session}`；不要假设 WebUI 链接格式。
 
 每次运行都保留新的 run ID。协议无效或诊断无效的记录照常登记，但不能带有效诊断分数。Ground Truth 仅供评分使用，绝不能提供给被评测的 Pi-Agent。
 
