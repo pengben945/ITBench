@@ -77,6 +77,8 @@ for runner in "$NATIVE_RUNNER" "$KNOWLEDGE_RUNNER"; do
 done
 
 NATIVE_RUN_ID=$(next_run_id "$SCENARIO_ID")
+printf 'Current run: case=%s cohort=v6-pi-native model=%s/%s session_name=%s-%s\n' \
+  "$SCENARIO_ID" "$PI_EVAL_PROVIDER" "$PI_EVAL_MODEL" "$SCENARIO_ID" "$NATIVE_RUN_ID"
 (
   cd "$PROJECT_ROOT"
   PI_EVAL_PROVIDER="$PI_EVAL_PROVIDER" \
@@ -86,6 +88,8 @@ NATIVE_RUN_ID=$(next_run_id "$SCENARIO_ID")
 )
 
 KNOWLEDGE_RUN_ID=$(next_run_id "$SCENARIO_ID")
+printf 'Current run: case=%s cohort=v6-user-knowledge model=%s/%s session_name=%s-%s\n' \
+  "$SCENARIO_ID" "$PI_EVAL_PROVIDER" "$PI_EVAL_MODEL" "$SCENARIO_ID" "$KNOWLEDGE_RUN_ID"
 (
   cd "$PROJECT_ROOT"
   PI_EVAL_PROVIDER="$PI_EVAL_PROVIDER" \

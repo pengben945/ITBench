@@ -76,6 +76,17 @@ evaluation/scripts/run_case_comparison_v6.sh Scenario-1
 python3 evaluation/scripts/register_scored_run.py runs/Scenario-1/run-NNN
 ```
 
+批量比较两个 Castrel 模型时，可先检查计划，再启动前台串行批次：
+
+```bash
+evaluation/scripts/trigger_case_comparison_batch_v6.sh --count 20 --dry-run
+evaluation/scripts/trigger_case_comparison_batch_v6.sh --count 20
+```
+
+`--count` 可设为 20–30，默认 20。脚本按 `Scenario-N` 数字顺序，从已有且有 SHA-256 manifest 的 Agent Cases 中选择指定数量；不会准备或覆盖 Case，也不会访问 Ground Truth。每个 Case 分别使用 `castrel-qwen38-27b-base` 和 `castrel-qwen38-27b-v003-1-lora-v001`，每个模型都依次运行 `v6-pi-native` 和 `v6-user-knowledge`，provider 使用对应模型 ID，thinking level 固定为 `high`，数据 revision 固定为 `76df38a82288f75ba9e41dc8c515033332497473`。默认 20 Case 共 80 次模型运行，并发为 1；脚本保持前台直到批次结束，并在远端 `runs/batch-launches/` 保存计划、结果和逐比较日志。运行时会显示当前 Case、cohort、模型和 Pi session name（格式为 `Scenario-N-run-NNN`）。失败比较会记录并继续后续比较，最终以非零状态报告失败；不会自动重试、评分或登记。
+
+脚本只调用已部署的远端 runner，不同步或改写远端代码。运行前会验证远端 Git 来源、代码副本、Case 隔离及 SHA-256 manifest 存在；若准备好的 Case 不足指定数量或 run ID 不足，会在任何模型调用前退出。
+
 看板只显示两个聚合显示组：`v6-pi-native` 合并展示 `v6-pi-native` 与历史 `v6-user-minimal`（及最小 UserMessage 别名）；`v6-user-knowledge` 合并展示 `v6-user-knowledge` 与历史 `v6-user-full` / UserMessage 别名。该规则仅用于页面过滤、分组和重新计算统计，API、run 目录及 `model_config.json` 中的原始批次 ID 均不改写；详细记录中保留原始批次。历史最小/完整提示使用自定义控制 system prompt，与新版 Pi 默认提示条件不同，因此合并均值是展示聚合，不能解释为同一提示条件下的严格对照。Review-only 记录仍显示但不计正式均分；不在两组映射表中的批次（如 `v6-system`）不显示。
 
 显示映射同时覆盖已登记的历史别名；两个 Neohorse `review-only` 批次继续归入知识增强显示组，原批次名保留，人工复核记录不计入正式均分。映射不会修改历史 run 的提示快照、批次字段或评分文件。
@@ -134,6 +145,7 @@ evaluation/
     ├── run_scenario_v6_pi_native.sh
     ├── run_scenario_v6_user_knowledge.sh
     ├── run_case_comparison_v6.sh
+    ├── trigger_case_comparison_batch_v6.sh
     ├── register_scored_run.py
     ├── test_register_scored_run.py
     └── summarize_run.py
