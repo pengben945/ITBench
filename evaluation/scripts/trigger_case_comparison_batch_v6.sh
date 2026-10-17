@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  evaluation/scripts/trigger_case_comparison_batch_v6.sh [--count 20..30] [--dry-run]
+  evaluation/scripts/trigger_case_comparison_batch_v6.sh [--on-server] [--count 20..30] [--dry-run]
 
 Runs each selected Case with both Castrel models. For each model/Case pair,
 the Pi-Agent native and user-knowledge cohorts run sequentially. The script
@@ -12,6 +12,7 @@ stays attached until all comparisons finish.
 
 Options:
   --count N   Number of prepared Cases to select, from 20 through 30 (default: 20)
+  --on-server Execute directly on the evaluation server instead of using SSH
   --dry-run   Validate the remote workspace and print the selected run plan
   -h, --help  Show this help
 
@@ -24,6 +25,7 @@ EOF
 
 COUNT=20
 DRY_RUN=0
+RUN_ON_SERVER=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --count)
@@ -33,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN=1
+      shift
+      ;;
+    --on-server)
+      RUN_ON_SERVER=1
       shift
       ;;
     -h|--help)
@@ -57,27 +63,38 @@ REMOTE_HOST=${ITBENCH_REMOTE_HOST:-root@10.106.3.100}
 REMOTE_ROOT=${ITBENCH_REMOTE_ROOT:-/data/edison/piagent-itbench-eval}
 SSH_KEY=${ITBENCH_SSH_KEY:-"$HOME/.ssh/id_ed25519"}
 
-[[ "$REMOTE_HOST" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$ ]] || {
-  echo "Invalid ITBENCH_REMOTE_HOST" >&2
-  exit 2
-}
 [[ "$REMOTE_ROOT" =~ ^/[A-Za-z0-9_./-]+$ && "$REMOTE_ROOT" != *..* ]] || {
   echo "ITBENCH_REMOTE_ROOT must be an absolute path without '..'" >&2
   exit 2
 }
-[[ -f "$SSH_KEY" ]] || {
-  echo "SSH identity file not found: $SSH_KEY" >&2
-  exit 1
-}
 
-ssh -T \
-  -i "$SSH_KEY" \
-  -o IdentitiesOnly=yes \
-  -o ConnectTimeout=15 \
-  -o ServerAliveInterval=30 \
-  -o ServerAliveCountMax=10 \
-  "$REMOTE_HOST" \
-  bash -s -- "$REMOTE_ROOT" "$COUNT" "$DRY_RUN" <<'REMOTE_BATCH'
+if (( RUN_ON_SERVER == 1 )); then
+  REMOTE_COMMAND=(bash -s -- "$REMOTE_ROOT" "$COUNT" "$DRY_RUN")
+else
+  [[ "$REMOTE_HOST" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$ ]] || {
+    echo "Invalid ITBENCH_REMOTE_HOST" >&2
+    exit 2
+  }
+  [[ -f "$SSH_KEY" ]] || {
+    echo "SSH identity file not found: $SSH_KEY" >&2
+    exit 1
+  }
+  REMOTE_COMMAND=(
+    ssh -T
+    -i "$SSH_KEY"
+    -o IdentitiesOnly=yes
+    -o ConnectTimeout=15
+    -o ServerAliveInterval=30
+    -o ServerAliveCountMax=10
+    "$REMOTE_HOST"
+    bash -s --
+    "$REMOTE_ROOT"
+    "$COUNT"
+    "$DRY_RUN"
+  )
+fi
+
+"${REMOTE_COMMAND[@]}" <<'REMOTE_BATCH'
 set -euo pipefail
 
 REMOTE_ROOT=$1
