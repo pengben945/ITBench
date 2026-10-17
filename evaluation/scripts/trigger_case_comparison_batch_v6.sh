@@ -241,15 +241,18 @@ for scenario_id in "${SELECTED_CASES[@]}"; do
 done
 shopt -u nullglob
 
-echo "Selected $COUNT prepared Cases (numeric order):"
-printf '  %s\n' "${SELECTED_CASES[@]}"
-echo "Models: castrel-qwen38-27b-base, castrel-qwen38-27b-v003-1-lora-v001"
-echo "Cohorts: v6-pi-native, v6-user-knowledge"
-echo "Provider: each model's configured Castrel provider; thinking: high"
-echo "Dataset revision: $DATA_REVISION"
-echo "Concurrency: 1; planned model runs: $((COUNT * 2 * 2))"
+print_plan() {
+  echo "Selected $COUNT prepared Cases (numeric order):"
+  printf '  %s\n' "${SELECTED_CASES[@]}"
+  echo "Models: castrel-qwen38-27b-base, castrel-qwen38-27b-v003-1-lora-v001"
+  echo "Cohorts: v6-pi-native, v6-user-knowledge"
+  echo "Provider: each model's configured Castrel provider; thinking: high"
+  echo "Dataset revision: $DATA_REVISION"
+  echo "Concurrency: 1; planned model runs: $((COUNT * 2 * 2))"
+}
 
 if [[ "$DRY_RUN" == 1 ]]; then
+  print_plan
   echo "Dry run only: no batch artifacts or model calls were created."
   exit 0
 fi
@@ -266,6 +269,12 @@ trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
 BATCH_ID="castrel-v6-$(date -u +%Y%m%dT%H%M%SZ)"
 BATCH_DIR="$RUN_ROOT/batch-launches/$BATCH_ID"
 mkdir "$BATCH_DIR"
+PROGRESS_LOG="$BATCH_DIR/progress.log"
+exec > >(tee -a "$PROGRESS_LOG") 2>&1
+print_plan
+echo "Batch artifacts: $BATCH_DIR"
+echo "Progress log: $PROGRESS_LOG"
+
 PLAN_FILE="$BATCH_DIR/plan.tsv"
 RESULTS_FILE="$BATCH_DIR/results.tsv"
 printf 'scenario\tmodel\tprovider\tthinking\tdata_revision\tcohorts\n' > "$PLAN_FILE"
@@ -289,7 +298,6 @@ for scenario_id in "${SELECTED_CASES[@]}"; do
   done
 done
 
-echo "Batch artifacts: $BATCH_DIR"
 comparison_count=0
 failure_count=0
 for scenario_id in "${SELECTED_CASES[@]}"; do
