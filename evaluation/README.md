@@ -90,14 +90,16 @@ cd /data/edison/piagent-itbench-eval/ITBench
 ./evaluation/scripts/trigger_case_comparison_batch_v6.sh --on-server --count 20
 ```
 
-如果批次意外中断，先确认没有评测进程，再用原批次 ID 检查断点并续跑；完整 cohort 会跳过，不完整的 cohort 会用新 run ID 重跑：
+如果批次意外中断，先确认没有评测进程，再用原批次 ID 检查断点并续跑；完整 cohort 会跳过，不完整的 cohort 会用新 run ID 重跑。默认会从原计划最早的未完成 Case 开始回补；若要从上次中断的 Case 接续并保留更早的失败项，可指定 `--from-case`：
 
 ```bash
 ./evaluation/scripts/resume_case_comparison_batch_v6.sh --dry-run castrel-v6-YYYYMMDDTHHMMSSZ
 ./evaluation/scripts/resume_case_comparison_batch_v6.sh castrel-v6-YYYYMMDDTHHMMSSZ
+./evaluation/scripts/resume_case_comparison_batch_v6.sh --dry-run --from-case Scenario-11 castrel-v6-YYYYMMDDTHHMMSSZ
+./evaluation/scripts/resume_case_comparison_batch_v6.sh --from-case Scenario-11 castrel-v6-YYYYMMDDTHHMMSSZ
 ```
 
-若脚本提示锁仍存在，只有在确认没有评测进程后，才用 `rmdir` 删除对应的空锁目录；不要删除或清理不完整的 run 目录。
+`--from-case Scenario-11` 会跳过原计划中编号排在 Scenario-11 前面的 Case，不改动其结果；本批次更早失败的 Case 可在之后单独补跑。若脚本提示锁仍存在，只有在确认没有评测进程后，才用 `rmdir` 删除对应的空锁目录；不要删除或清理不完整的 run 目录。
 
 `--count` 可设为 20–30，默认 20。脚本按 `Scenario-N` 数字顺序，从已有且有 SHA-256 manifest 的 Agent Cases 中选择指定数量；不会准备或覆盖 Case，也不会访问 Ground Truth。每个 Case 分别使用 `castrel-qwen38-27b-base` 和 `castrel-qwen38-27b-v003-1-lora-v001`，每个模型都依次运行 `v6-pi-native` 和 `v6-user-knowledge`，provider 使用对应模型 ID，thinking level 固定为 `high`，数据 revision 固定为 `76df38a82288f75ba9e41dc8c515033332497473`。默认 20 Case 共 80 次模型运行，并发为 1；脚本保持前台直到批次结束，并在远端 `runs/batch-launches/` 保存计划、结果、批次级 `progress.log` 和逐比较日志。运行时会显示当前 Case、cohort、模型和 Pi session name（格式为 `Scenario-N-run-NNN`），该进度也会写入 `progress.log`。失败比较会记录并继续后续比较，最终以非零状态报告失败；不会自动重试、评分或登记。
 

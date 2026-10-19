@@ -4,14 +4,18 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  evaluation/scripts/resume_case_comparison_batch_v6.sh [--dry-run] BATCH_ID
+  evaluation/scripts/resume_case_comparison_batch_v6.sh [--dry-run] [--from-case Scenario-N] BATCH_ID
 
 Resume a stopped Castrel V6 batch from its original plan. Fully completed
 cohorts are preserved and skipped; incomplete cohorts are rerun with fresh
-run IDs. Run directly on the evaluation server.
+run IDs. By default, earlier failed or incomplete Cases are retried in plan
+order. Use --from-case to resume at a later checkpoint and leave earlier Cases
+unchanged. Run directly on the evaluation server.
 
 Options:
   --dry-run  Show completed and missing cohorts without running models
+  --from-case Scenario-N
+             Skip Cases before this Case in the original batch plan
   -h, --help Show this help
 
 Before resuming, verify no batch is running. If stale lock directories remain,
@@ -20,12 +24,18 @@ EOF
 }
 
 DRY_RUN=0
+FROM_CASE=
 BATCH_ID=
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)
       DRY_RUN=1
       shift
+      ;;
+    --from-case)
+      [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+      FROM_CASE=$2
+      shift 2
       ;;
     -h|--help)
       usage
@@ -47,6 +57,10 @@ done
   usage >&2
   exit 2
 }
+if [[ -n "$FROM_CASE" && ! "$FROM_CASE" =~ ^Scenario-[0-9]+$ ]]; then
+  echo "--from-case must be a Case ID such as Scenario-11." >&2
+  exit 2
+fi
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 CODE_ROOT=$(cd -- "$SCRIPT_DIR/../.." && pwd -P)
@@ -204,6 +218,24 @@ COUNT=${#SELECTED_CASES[@]}
   echo "Batch plan must contain exactly one row per Case/model pair." >&2
   exit 1
 }
+START_CASE_INDEX=0
+if [[ -n "$FROM_CASE" ]]; then
+  found_from_case=0
+  for index in "${!SELECTED_CASES[@]}"; do
+    if [[ "${SELECTED_CASES[$index]}" == "$FROM_CASE" ]]; then
+      START_CASE_INDEX=$index
+      found_from_case=1
+      break
+    fi
+  done
+  (( found_from_case == 1 )) || {
+    echo "$FROM_CASE is not present in batch plan $BATCH_ID." >&2
+    exit 1
+  }
+fi
+PROCESS_CASES=("${SELECTED_CASES[@]:$START_CASE_INDEX}")
+PROCESS_COUNT=${#PROCESS_CASES[@]}
+
 for scenario_id in "${SELECTED_CASES[@]}"; do
   for model_config in "${MODEL_CONFIGS[@]}"; do
     IFS='|' read -r model _provider _thinking <<< "$model_config"
@@ -337,8 +369,11 @@ PY
 
 declare -A COMPLETED_RUNS=()
 remaining_runs=0
-echo "Resume plan for $BATCH_ID ($COUNT Cases):"
-for scenario_id in "${SELECTED_CASES[@]}"; do
+echo "Resume plan for $BATCH_ID: starting at ${PROCESS_CASES[0]}, processing $PROCESS_COUNT of $COUNT Cases."
+if (( START_CASE_INDEX > 0 )); then
+  echo "Leaving the $START_CASE_INDEX earlier planned Cases unchanged."
+fi
+for scenario_id in "${PROCESS_CASES[@]}"; do
   for model_config in "${MODEL_CONFIGS[@]}"; do
     IFS='|' read -r model provider _thinking <<< "$model_config"
     native_id=$(completed_run_id "$scenario_id" "$model" "$provider" v6-pi-native)
@@ -351,7 +386,7 @@ for scenario_id in "${SELECTED_CASES[@]}"; do
       "${native_id:-missing}" "${knowledge_id:-missing}"
   done
 done
-echo "Completed cohort runs: $((COUNT * ${#MODEL_CONFIGS[@]} * 2 - remaining_runs)); remaining: $remaining_runs"
+echo "Completed cohort runs in scope: $((PROCESS_COUNT * ${#MODEL_CONFIGS[@]} * 2 - remaining_runs)); remaining in scope: $remaining_runs"
 
 if (( DRY_RUN == 1 )); then
   echo "Dry run only: no run directories, locks, or model calls were created."
@@ -364,7 +399,7 @@ if [[ -e "$LOCK_DIR" ]]; then
   echo "Confirm no evaluation is running, then remove this empty stale lock with rmdir." >&2
   exit 1
 fi
-for scenario_id in "${SELECTED_CASES[@]}"; do
+for scenario_id in "${PROCESS_CASES[@]}"; do
   case_lock="$RUN_ROOT/.case-pipeline-$scenario_id.lock"
   if [[ -e "$case_lock" ]]; then
     echo "Case lock already exists: $case_lock" >&2
@@ -484,7 +519,7 @@ has_completed_result() {
 
 comparison_count=0
 failure_count=0
-for scenario_id in "${SELECTED_CASES[@]}"; do
+for scenario_id in "${PROCESS_CASES[@]}"; do
   for model_config in "${MODEL_CONFIGS[@]}"; do
     IFS='|' read -r model provider thinking <<< "$model_config"
     pair_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
